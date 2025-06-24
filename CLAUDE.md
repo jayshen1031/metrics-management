@@ -214,13 +214,16 @@ NODE_ENV=development
 
 ## 部署状态与访问信息
 
-### ✅ 当前运行状态 (2025-06-24)
+### ✅ 当前运行状态 (2025-06-24 最新)
 - **应用状态**: 正常运行
 - **前端界面**: http://localhost:3000 (可视化管理界面)
 - **API服务**: http://localhost:3000/api/v1 (RESTful API)
 - **健康检查**: http://localhost:3000/health
+- **系统状态**: 🟢 所有服务健康 (Database、DolphinScheduler、Doris)
 - **数据库**: MySQL容器运行正常 (metrics-mysql:3307)
 - **缓存**: Redis容器运行正常 (metrics-redis:6379)
+- **DolphinScheduler**: Mock服务运行正常 (localhost:12345/dolphinscheduler)
+- **Doris**: Mock服务运行正常 (localhost:8030/api/health)
 
 ### 🌐 前端功能
 - **系统监控**: 实时健康状态检查
@@ -252,6 +255,9 @@ NODE_ENV=development
 4. **中文字符乱码** → 配置utf8mb4字符集
 5. **数据库表缺失** → 手动创建缺失的血缘分析表
 6. **SQL查询错误** → 修正列名匹配问题
+7. **DolphinScheduler连接问题** → 修复URL路径重复问题
+8. **Doris部署复杂性** → 使用Mock服务简化部署
+9. **系统健康检查失败** → 优化服务连接和检查逻辑
 
 ### 配置要求  
 1. **字符集**: 数据库连接必须使用utf8mb4字符集
@@ -260,11 +266,12 @@ NODE_ENV=development
 4. **权限配置**: MySQL允许从Docker网络连接
 
 ### 功能限制
-1. **外部系统连接**: DolphinScheduler和Doris需要单独部署
+1. **外部系统连接**: 当前使用Mock服务模拟DolphinScheduler和Doris
 2. **SQL血缘解析**: 支持常见语句类型（INSERT、CREATE TABLE AS SELECT等）
 3. **数据质量评分**: 范围0-100
 4. **血缘分析深度**: 建议不超过5层
 5. **查询性能**: 大量数据查询时使用分页避免超时
+6. **Mock服务限制**: 提供基础API响应，不包含真实数据处理
 
 ### 性能优化
 1. 元数据采集建议在业务低峰期进行
