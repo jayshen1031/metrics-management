@@ -105,8 +105,8 @@ metrics-management/
 
 ## 常用命令
 ```bash
-# 安装依赖
-npm install
+# 安装依赖（推荐使用yarn，避免npm缓存问题）
+yarn install
 
 # 开发模式启动
 npm run dev
@@ -114,22 +114,44 @@ npm run dev
 # 生产模式启动
 npm start
 
+# 后台启动（生产环境）
+nohup node src/app.js > app.log 2>&1 &
+
 # 运行测试
 npm test
 
 # 代码检查
 npm run lint
 
+# 停止后台进程
+pkill -f "node src/app.js"
+
+# 数据库相关
 # 初始化数据库
-mysql -u root -p < scripts/init-database.sql
+docker exec -i metrics-mysql mysql -u root -proot123456 metrics_management < scripts/init-database.sql
+
+# 修复中文字符集问题
+docker exec -i metrics-mysql mysql -u root -proot123456 --default-character-set=utf8mb4 metrics_management < insert-clean-metrics.sql
 ```
 
 ## 环境配置
 复制 `.env.example` 为 `.env` 并配置以下项：
-- 数据库连接信息
+- 数据库连接信息（注意：使用端口3307避免冲突）
 - JWT密钥
 - 服务端口
 - 日志配置
+
+### 当前测试环境配置
+```env
+DB_HOST=localhost
+DB_PORT=3307  # 避免与本地MySQL冲突
+DB_USER=root
+DB_PASSWORD=root123456
+DB_NAME=metrics_management
+JWT_SECRET=metrics_jwt_secret_key_2025
+PORT=3000
+NODE_ENV=development
+```
 
 ## API端点
 
@@ -190,25 +212,59 @@ mysql -u root -p < scripts/init-database.sql
 - `POST /system/maintenance` - 数据库维护
 - `POST /system/test-connection` - 测试连接
 
+## 部署状态与访问信息
+
+### ✅ 当前运行状态 (2025-06-24)
+- **应用状态**: 正常运行
+- **前端界面**: http://localhost:3000 (可视化管理界面)
+- **API服务**: http://localhost:3000/api/v1 (RESTful API)
+- **健康检查**: http://localhost:3000/health
+- **数据库**: MySQL容器运行正常 (metrics-mysql:3307)
+- **缓存**: Redis容器运行正常 (metrics-redis:6379)
+
+### 🌐 前端功能
+- **系统监控**: 实时健康状态检查
+- **数据概览**: 资产统计和概览信息
+- **指标管理**: 指标列表查看和管理
+- **API测试**: 内置API接口测试工具
+- **响应式设计**: 支持桌面和移动端访问
+
+### 📊 测试数据
+系统已包含5个示例指标：
+- 日活跃用户数 (用户指标)
+- 订单转化率 (业务指标)  
+- 客户满意度 (服务指标)
+- 页面访问量 (流量指标)
+- 系统可用性 (技术指标)
+
 ## 注意事项
 
 ### 环境要求
-1. 确保MySQL服务已启动，版本 >= 8.0
-2. 确保Doris集群正常运行，FE节点可访问
-3. 确保DolphinScheduler平台可访问
-4. Node.js版本 >= 16.0.0
+1. Docker >= 20.10, Docker Compose >= 1.29
+2. Node.js版本 >= 16.0.0 (当前测试: v22.11.0)
+3. 可用内存 >= 4GB (推荐8GB+)
+4. 磁盘空间 >= 10GB
+
+### 已解决的部署问题
+1. **npm缓存权限问题** → 使用yarn安装依赖
+2. **MySQL端口冲突** → 使用3307端口避免冲突
+3. **环境变量加载问题** → 调整dotenv.config()位置
+4. **中文字符乱码** → 配置utf8mb4字符集
+5. **数据库表缺失** → 手动创建缺失的血缘分析表
+6. **SQL查询错误** → 修正列名匹配问题
 
 ### 配置要求  
-1. 数据库字符集使用utf8mb4
-2. 正确配置Doris和DolphinScheduler连接信息
-3. 设置合适的元数据采集频率
-4. 配置足够的数据库存储空间
+1. **字符集**: 数据库连接必须使用utf8mb4字符集
+2. **端口配置**: MySQL使用3307端口避免冲突
+3. **Docker网络**: 确保容器间网络通信正常
+4. **权限配置**: MySQL允许从Docker网络连接
 
 ### 功能限制
-1. SQL血缘解析支持常见语句类型（INSERT、CREATE TABLE AS SELECT等）
-2. 数据质量评分范围0-100
-3. 血缘分析深度建议不超过5层
-4. 大量数据查询时使用分页避免超时
+1. **外部系统连接**: DolphinScheduler和Doris需要单独部署
+2. **SQL血缘解析**: 支持常见语句类型（INSERT、CREATE TABLE AS SELECT等）
+3. **数据质量评分**: 范围0-100
+4. **血缘分析深度**: 建议不超过5层
+5. **查询性能**: 大量数据查询时使用分页避免超时
 
 ### 性能优化
 1. 元数据采集建议在业务低峰期进行
@@ -221,6 +277,12 @@ mysql -u root -p < scripts/init-database.sql
 2. 配置适当的网络访问控制
 3. 定期备份元数据和配置
 4. 监控系统资源使用情况
+
+### 故障排查
+1. **应用无法启动**: 检查端口占用和环境变量
+2. **数据库连接失败**: 验证MySQL容器状态和连接配置
+3. **中文乱码**: 确保使用utf8mb4字符集
+4. **API接口错误**: 查看app.log日志文件
 
 ## 开发规范
 - 使用ESLint进行代码检查
