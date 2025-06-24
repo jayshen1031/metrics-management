@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # MySQL - 用于指标管理平台的元数据存储
+  mysql:
+    image: mysql:8.0
+    container_name: metrics-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: metrics_management
+      MYSQL_USER: metrics
+      MYSQL_PASSWORD: metrics123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-database.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis - 用于缓存
+  redis:
+    image: redis:7-alpine
+    container_name: metrics-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  metrics-network:
+    driver: bridge

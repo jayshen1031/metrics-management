@@ -1,0 +1,236 @@
+version: '3.8'
+
+services:
+  # MySQL - 用于指标管理平台的元数据存储
+  mysql:
+    image: mysql:8.0
+    container_name: metrics-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: metrics_management
+      MYSQL_USER: metrics
+      MYSQL_PASSWORD: metrics123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-database.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Doris FE (Frontend)
+  doris-fe:
+    image: apache/doris:2.0.3-fe
+    container_name: doris-fe
+    hostname: doris-fe
+    environment:
+      - FE_SERVERS=fe1:doris-fe:9010
+      - FE_ID=1
+    ports:
+      - "8030:8030"  # HTTP端口
+      - "9030:9030"  # MySQL协议端口
+      - "9010:9010"  # RPC端口
+    volumes:
+      - doris_fe_data:/opt/apache-doris/fe/doris-meta
+      - ./config/doris/fe.conf:/opt/apache-doris/fe/conf/fe.conf
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Doris BE (Backend)
+  doris-be:
+    image: apache/doris:2.0.3-be
+    container_name: doris-be
+    hostname: doris-be
+    environment:
+      - FE_SERVERS=fe1:doris-fe:9010
+      - BE_ADDR=doris-be:9050
+    ports:
+      - "8040:8040"  # HTTP端口
+      - "9050:9050"  # RPC端口
+      - "9060:9060"  # 心跳端口
+    volumes:
+      - doris_be_data:/opt/apache-doris/be/storage
+      - ./config/doris/be.conf:/opt/apache-doris/be/conf/be.conf
+    networks:
+      - metrics-network
+    depends_on:
+      - doris-fe
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8040/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL - 用于DolphinScheduler
+  postgres:
+    image: postgres:13
+    container_name: dolphinscheduler-postgres
+    environment:
+      POSTGRES_USER: dolphinscheduler
+      POSTGRES_PASSWORD: dolphinscheduler123
+      POSTGRES_DB: dolphinscheduler
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "dolphinscheduler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper - 用于DolphinScheduler
+  zookeeper:
+    image: zookeeper:3.8
+    container_name: dolphinscheduler-zookeeper
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper:2888:3888;2181
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_logs:/datalog
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # DolphinScheduler API
+  dolphinscheduler-api:
+    image: apache/dolphinscheduler:3.1.8
+    container_name: dolphinscheduler-api
+    command: api-server
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: dolphinscheduler
+      DATABASE_PASSWORD: dolphinscheduler123
+      DATABASE_DATABASE: dolphinscheduler
+      DATABASE_PARAMS: characterEncoding=utf8
+      REGISTRY_ZOOKEEPER_CONNECT_STRING: zookeeper:2181
+      JAVA_OPTS: "-Xms512m -Xmx512m -Xmn256m"
+    ports:
+      - "12345:12345"
+    networks:
+      - metrics-network
+    depends_on:
+      - postgres
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:12345/dolphinscheduler/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # DolphinScheduler Master
+  dolphinscheduler-master:
+    image: apache/dolphinscheduler:3.1.8
+    container_name: dolphinscheduler-master
+    command: master-server
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: dolphinscheduler
+      DATABASE_PASSWORD: dolphinscheduler123
+      DATABASE_DATABASE: dolphinscheduler
+      DATABASE_PARAMS: characterEncoding=utf8
+      REGISTRY_ZOOKEEPER_CONNECT_STRING: zookeeper:2181
+      JAVA_OPTS: "-Xms512m -Xmx512m -Xmn256m"
+    networks:
+      - metrics-network
+    depends_on:
+      - postgres
+      - zookeeper
+      - dolphinscheduler-api
+
+  # DolphinScheduler Worker
+  dolphinscheduler-worker:
+    image: apache/dolphinscheduler:3.1.8
+    container_name: dolphinscheduler-worker
+    command: worker-server
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: dolphinscheduler
+      DATABASE_PASSWORD: dolphinscheduler123
+      DATABASE_DATABASE: dolphinscheduler
+      DATABASE_PARAMS: characterEncoding=utf8
+      REGISTRY_ZOOKEEPER_CONNECT_STRING: zookeeper:2181
+      JAVA_OPTS: "-Xms512m -Xmx512m -Xmn256m"
+      WORKER_GROUPS: default
+    networks:
+      - metrics-network
+    depends_on:
+      - postgres
+      - zookeeper
+      - dolphinscheduler-api
+
+  # DolphinScheduler Alert (可选)
+  dolphinscheduler-alert:
+    image: apache/dolphinscheduler:3.1.8
+    container_name: dolphinscheduler-alert
+    command: alert-server
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: dolphinscheduler
+      DATABASE_PASSWORD: dolphinscheduler123
+      DATABASE_DATABASE: dolphinscheduler
+      DATABASE_PARAMS: characterEncoding=utf8
+      JAVA_OPTS: "-Xms256m -Xmx256m -Xmn128m"
+    networks:
+      - metrics-network
+    depends_on:
+      - postgres
+
+  # Redis - 用于缓存
+  redis:
+    image: redis:7-alpine
+    container_name: metrics-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+  doris_fe_data:
+  doris_be_data:
+  postgres_data:
+  zookeeper_data:
+  zookeeper_logs:
+  redis_data:
+
+networks:
+  metrics-network:
+    driver: bridge
