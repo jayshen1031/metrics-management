@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标血缘图谱 - Neovis.js自定义界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    
+    <!-- vis.js for visualization -->
+    <script src="https://unpkg.com/vis-network@latest/standalone/umd/vis-network.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #4caf50;
+            --danger: #ff5252;
+            --dark: #1a1a2e;
+            --light: #f5f7fa;
+            --card-bg: #16213e;
+            --border: #233554;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* 布局 */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 查询面板 */
+        .query-panel {
+            width: 400px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+
+        .query-panel.collapsed {
+            margin-left: -400px;
+        }
+
+        .panel-header {
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .query-editor {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .cypher-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .cypher-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .query-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 预设查询 */
+        .preset-queries {
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .preset-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: #a8b2d1;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preset-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .preset-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .preset-desc {
+            font-size: 0.85rem;
+            color: #a8b2d1;
+        }
+
+        /* 图谱容器 */
+        .graph-wrapper {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+        }
+
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 浮动控制按钮 */
+        .floating-controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #fff;
+        }
+
+        .control-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            min-width: 250px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .info-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #a8b2d1;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* 节点样式配置 */
+        .node-styles {
+            --metric-color: #ff6b6b;
+            --table-color: #4ecdc4;
+            --field-color: #ffe66d;
+            --report-color: #a8e6cf;
+            --dashboard-color: #ff8b94;
+            --api-color: #c7ceea;
+        }
+
+        /* 加载和错误状态 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102, 126, 234, 0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast 通知 */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 2000;
+        }
+
+        .toast-message {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-message.success {
+            border-color: var(--success);
+        }
+
+        .toast-message.error {
+            border-color: var(--danger);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .query-panel {
+                position: absolute;
+                z-index: 100;
+                height: 100%;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部工具栏 -->
+        <div class="toolbar">
+            <h1 class="brand">
+                <i class="bi bi-diagram-3"></i> 指标血缘图谱
+            </h1>
+            <div class="d-flex align-items-center gap-4">
+                <div class="status-indicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">检查连接...</span>
+                </div>
+                <a href="/" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-house"></i> 返回主页
+                </a>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 查询面板 -->
+            <div class="query-panel" id="queryPanel">
+                <div class="panel-header">
+                    <h5 class="mb-0">Cypher 查询</h5>
+                    <button class="control-btn" onclick="togglePanel()" title="收起面板">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </div>
+                
+                <div class="query-editor">
+                    <textarea class="cypher-input" id="cypherInput" placeholder="输入 Cypher 查询语句...">MATCH (n:Metric) RETURN n LIMIT 25</textarea>
+                    <div class="query-actions">
+                        <button class="btn-gradient" onclick="executeQuery()">
+                            <i class="bi bi-play-fill"></i> 执行查询
+                        </button>
+                        <button class="btn btn-outline-light" onclick="clearQuery()">
+                            <i class="bi bi-x"></i> 清空
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="preset-queries">
+                    <div class="preset-title">预设查询</div>
+                    
+                    <div class="preset-item" onclick="loadPreset('all-metrics')">
+                        <div class="preset-name">
+                            <i class="bi bi-speedometer2"></i> 所有指标
+                        </div>
+                        <div class="preset-desc">查看系统中的所有指标节点</div>
+                    </div>
+                    
+                    <div class="preset-item" onclick="loadPreset('dau-lineage')">
+                        <div class="preset-name">
+                            <i class="bi bi-diagram-3"></i> DAU 血缘
+                        </div>
+                        <div class="preset-desc">追踪日活跃用户数的完整血缘关系</div>
+                    </div>
+                    
+                    <div class="preset-item" onclick="loadPreset('table-relations')">
+                        <div class="preset-name">
+                            <i class="bi bi-table"></i> 表关系
+                        </div>
+                        <div class="preset-desc">展示数据表之间的关联关系</div>
+                    </div>
+                    
+                    <div class="preset-item" onclick="loadPreset('metric-deps')">
+                        <div class="preset-name">
+                            <i class="bi bi-arrow-left-right"></i> 指标依赖
+                        </div>
+                        <div class="preset-desc">分析指标间的依赖关系</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图谱容器 -->
+            <div class="graph-wrapper">
+                <div id="graph"></div>
+                
+                <!-- 浮动控制按钮 -->
+                <div class="floating-controls">
+                    <button class="control-btn" onclick="togglePanel()" title="切换查询面板" id="toggleBtn" style="display: none;">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    <button class="control-btn" onclick="zoomIn()" title="放大">
+                        <i class="bi bi-zoom-in"></i>
+                    </button>
+                    <button class="control-btn" onclick="zoomOut()" title="缩小">
+                        <i class="bi bi-zoom-out"></i>
+                    </button>
+                    <button class="control-btn" onclick="fitGraph()" title="适应屏幕">
+                        <i class="bi bi-arrows-angle-expand"></i>
+                    </button>
+                    <button class="control-btn" onclick="togglePhysics()" title="切换物理引擎">
+                        <i class="bi bi-lightning"></i>
+                    </button>
+                </div>
+                
+                <!-- 信息面板 -->
+                <div class="info-panel">
+                    <div class="info-title">
+                        <i class="bi bi-info-circle"></i> 图谱统计
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">节点数量</span>
+                        <span class="stat-value" id="nodeCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">关系数量</span>
+                        <span class="stat-value" id="edgeCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">查询耗时</span>
+                        <span class="stat-value" id="queryTime">0ms</span>
+                    </div>
+                </div>
+                
+                <!-- 加载状态 -->
+                <div class="overlay" id="loadingOverlay" style="display: none;">
+                    <div class="loading-content">
+                        <div class="spinner"></div>
+                        <h4>正在加载图谱...</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // 全局变量
+        let network = null;
+        let physicsEnabled = true;
+        let panelCollapsed = false;
+
+        // 预设查询
+        const presets = {
+            'all-metrics': 'MATCH (n:Metric) RETURN n',
+            'dau-lineage': `MATCH (m:Metric {name: 'DAU'})-[r*1..3]-(n) RETURN m, r, n LIMIT 50`,
+            'table-relations': 'MATCH (t:Table)-[r]-(n) WHERE n:Table OR n:Field RETURN t, r, n LIMIT 50',
+            'metric-deps': 'MATCH (m1:Metric)-[r:DEPENDS_ON]->(m2:Metric) RETURN m1, r, m2'
+        };
+
+        // 节点颜色
+        const nodeColors = {
+            'Metric': '#ff6b6b',
+            'Table': '#4ecdc4',
+            'Field': '#ffe66d',
+            'Report': '#a8e6cf',
+            'Dashboard': '#ff8b94',
+            'API': '#c7ceea',
+            'default': '#999999'
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            initNetwork();
+            setTimeout(() => executeQuery(), 500);
+        });
+
+        // 检查连接
+        async function checkConnection() {
+            try {
+                const response = await fetch('/api/v1/neo4j/health');
+                const data = await response.json();
+                updateConnectionStatus(data.status === 'connected');
+            } catch (error) {
+                updateConnectionStatus(false);
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接到 Neo4j';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+            }
+        }
+
+        // 初始化网络图
+        function initNetwork() {
+            const container = document.getElementById('graph');
+            const data = {
+                nodes: new vis.DataSet(),
+                edges: new vis.DataSet()
+            };
+            
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 30,
+                    font: {
+                        size: 14,
+                        color: '#ffffff',
+                        strokeWidth: 3,
+                        strokeColor: '#000000'
+                    },
+                    borderWidth: 3,
+                    shadow: {
+                        enabled: true,
+                        size: 10,
+                        x: 5,
+                        y: 5
+                    }
+                },
+                edges: {
+                    width: 2,
+                    color: {
+                        inherit: 'from',
+                        opacity: 0.8
+                    },
+                    smooth: {
+                        type: 'continuous',
+                        roundness: 0.5
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.8
+                        }
+                    },
+                    font: {
+                        size: 12,
+                        color: '#a8b2d1',
+                        strokeWidth: 3,
+                        strokeColor: '#1a1a2e'
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 200,
+                        springConstant: 0.08,
+                        damping: 0.4,
+                        avoidOverlap: 0.5
+                    },
+                    solver: 'forceAtlas2Based',
+                    stabilization: {
+                        enabled: true,
+                        iterations: 1000,
+                        updateInterval: 50
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true,
+                    navigationButtons: false,
+                    keyboard: {
+                        enabled: true
+                    }
+                }
+            };
+            
+            network = new vis.Network(container, data, options);
+            
+            // 节点点击事件
+            network.on("click", function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = network.body.data.nodes.get(nodeId);
+                    showToast(`选中节点: ${node.label}`, 'success');
+                }
+            });
+        }
+
+        // 执行查询
+        async function executeQuery() {
+            const cypher = document.getElementById('cypherInput').value.trim();
+            if (!cypher) {
+                showToast('请输入 Cypher 查询语句', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch('/api/v1/neo4j/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ cypher })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('查询失败');
+                }
+                
+                const result = await response.json();
+                const queryTime = Date.now() - startTime;
+                
+                // 渲染图谱
+                renderGraph(result);
+                
+                // 更新统计
+                updateStats(result.nodes.length, result.relationships.length, queryTime);
+                
+                showLoading(false);
+                showToast('查询成功', 'success');
+                
+            } catch (error) {
+                showLoading(false);
+                showToast(error.message || '查询失败', 'error');
+                console.error('Query error:', error);
+            }
+        }
+
+        // 渲染图谱
+        function renderGraph(data) {
+            const nodes = new vis.DataSet();
+            const edges = new vis.DataSet();
+            
+            // 处理节点
+            data.nodes.forEach(node => {
+                const label = node.labels[0] || 'Unknown';
+                const color = nodeColors[label] || nodeColors.default;
+                
+                nodes.add({
+                    id: node.id,
+                    label: node.properties.name || node.properties.display_name || `${label} ${node.id}`,
+                    title: createNodeTooltip(label, node.properties),
+                    color: color,
+                    size: 30 + (node.properties.importance || 0) * 10,
+                    font: {
+                        size: 14,
+                        color: '#ffffff'
+                    }
+                });
+            });
+            
+            // 处理关系
+            data.relationships.forEach(rel => {
+                edges.add({
+                    id: rel.id,
+                    from: rel.startNode,
+                    to: rel.endNode,
+                    label: rel.type.replace(/_/g, ' '),
+                    title: rel.type
+                });
+            });
+            
+            // 更新网络
+            network.setData({ nodes, edges });
+        }
+
+        // 创建节点提示
+        function createNodeTooltip(type, properties) {
+            let html = `<div style="padding: 10px; background: #16213e; border: 1px solid #667eea; border-radius: 8px;">`;
+            html += `<strong style="color: #667eea;">${type}</strong><br>`;
+            
+            for (const [key, value] of Object.entries(properties)) {
+                if (value !== null && value !== undefined) {
+                    html += `<span style="color: #a8b2d1;">${key}:</span> <span style="color: #fff;">${value}</span><br>`;
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        // 更新统计信息
+        function updateStats(nodeCount, edgeCount, queryTime) {
+            document.getElementById('nodeCount').textContent = nodeCount;
+            document.getElementById('edgeCount').textContent = edgeCount;
+            document.getElementById('queryTime').textContent = `${queryTime}ms`;
+        }
+
+        // 加载预设查询
+        function loadPreset(name) {
+            const query = presets[name];
+            if (query) {
+                document.getElementById('cypherInput').value = query;
+                executeQuery();
+            }
+        }
+
+        // 清空查询
+        function clearQuery() {
+            document.getElementById('cypherInput').value = '';
+        }
+
+        // 切换面板
+        function togglePanel() {
+            const panel = document.getElementById('queryPanel');
+            const toggleBtn = document.getElementById('toggleBtn');
+            
+            panelCollapsed = !panelCollapsed;
+            
+            if (panelCollapsed) {
+                panel.classList.add('collapsed');
+                toggleBtn.style.display = 'block';
+            } else {
+                panel.classList.remove('collapsed');
+                toggleBtn.style.display = 'none';
+            }
+        }
+
+        // 缩放控制
+        function zoomIn() {
+            const scale = network.getScale();
+            network.moveTo({ scale: scale * 1.2 });
+        }
+
+        function zoomOut() {
+            const scale = network.getScale();
+            network.moveTo({ scale: scale * 0.8 });
+        }
+
+        function fitGraph() {
+            network.fit();
+        }
+
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({ physics: { enabled: physicsEnabled } });
+            showToast(physicsEnabled ? '物理引擎已启用' : '物理引擎已禁用', 'success');
+        }
+
+        // 显示加载状态
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        // 显示提示消息
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${type}`;
+            
+            const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+            toast.innerHTML = `
+                <i class="bi bi-${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                executeQuery();
+            }
+        });
+    </script>
+</body>
+</html>

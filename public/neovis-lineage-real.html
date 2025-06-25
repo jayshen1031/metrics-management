@@ -625,11 +625,15 @@ LIMIT 50</textarea>
         
         // 初始化 Neovis
         function initializeNeovis() {
+            console.log('开始初始化 Neovis...');
+            
             const config = {
                 container_id: "viz",
                 server_url: "bolt://localhost:7687",
                 server_user: "neo4j",
                 server_password: "metrics123", // Neo4j密码
+                encrypted: false, // 关闭加密连接
+                trust: "TRUST_ALL_CERTIFICATES", // 信任所有证书
                 labels: {
                     "Metric": {
                         "caption": "name",
@@ -738,9 +742,20 @@ LIMIT 50</textarea>
             
             viz.registerOnEvent("error", function(e) {
                 hideLoading();
-                showError(e);
+                console.error("Neovis错误详情:", e);
+                
+                // 更详细的错误信息
+                let errorMessage = '连接失败: ';
+                if (e && e.message) {
+                    errorMessage += e.message;
+                } else if (e && e.toString) {
+                    errorMessage += e.toString();
+                } else {
+                    errorMessage += JSON.stringify(e);
+                }
+                
+                showError({message: errorMessage});
                 updateConnectionStatus(false);
-                console.error("Neovis错误:", e);
             });
             
             viz.registerOnEvent("clickNode", function(e) {

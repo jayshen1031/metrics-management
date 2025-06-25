@@ -279,11 +279,16 @@ NODE_ENV=development
 - `POST /system/maintenance` - 数据库维护
 - `POST /system/test-connection` - 测试连接
 
+### Neo4j代理 `/api/v1/neo4j` 🆕
+- `GET /neo4j/health` - Neo4j连接健康检查
+- `POST /neo4j/query` - 执行Cypher查询
+- `GET /neo4j/stats` - 获取数据库统计信息
+
 ## 部署状态与访问信息
 
 ### ✅ 当前运行状态 (2025-06-25 最新)
 - **应用状态**: 正常运行
-- **系统主页**: http://localhost:3000/navigation-v2.html (Bootstrap设计风格)
+- **系统主页**: http://localhost:3000 (新导航中心)
 - **API服务**: http://localhost:3000/api/v1 (RESTful API)
 - **健康检查**: http://localhost:3000/health
 - **系统状态**: 🟢 核心服务健康 (Database、Redis、Mock Services)
@@ -291,6 +296,7 @@ NODE_ENV=development
 - **缓存**: Redis容器运行正常 (metrics-redis:6379)
 - **DolphinScheduler**: Mock服务运行正常 (localhost:12345/dolphinscheduler)
 - **Doris**: Mock服务运行正常 (localhost:8030/api/health)
+- **Neo4j**: 图数据库运行正常 (localhost:7474/7687)
 
 ### 🌐 前端功能页面
 - **导航中心**: `/navigation-v2.html` - 系统主页，Bootstrap 5设计
@@ -299,10 +305,14 @@ NODE_ENV=development
 - **SQL分析**: `/sql-analyzer.html` - CodeMirror SQL血缘分析工具
 - **资产目录**: `/assets-catalog.html` - 数据资产统一管理
 - **API测试**: `/api-tester.html` - 可视化API测试工具
-- **血缘图谱**: `/metric-lineage-graph.html` - D3.js交互式血缘图（已优化文字适配）
-- **Neo4j血缘图**: `/neovis-lineage.html` - 基于Neovis.js的专业级血缘图谱
+- **血缘图谱**: 
+  - `/metric-lineage-graph.html` - D3.js交互式血缘图（已优化文字适配）
+  - `/neovis-lineage.html` - 模拟Neo4j界面（vis.js）
+  - `/neovis-lineage-real.html` - 真实Neovis.js（需解决连接问题）
+  - `/neo4j-http-graph.html` - HTTP API方案（稳定可靠）
+  - `/neovis-proxy.html` - 服务器代理方案（推荐使用）✨
 - **血缘演示**: `/lineage-demo.html` - 血缘关系演示页面
-- **原始主页**: `/index.html` - 原始系统监控页面
+- **导航中心**: `/index.html` - 新的系统主页
 
 ### 📊 测试数据与案例
 - **示例指标**: 5个业务指标（日活、转化率、满意度等）
@@ -412,6 +422,16 @@ NODE_ENV=development
      - 真正的Neovis.js集成
      - 实时Cypher查询执行
      - 专业图数据库功能
+   - **HTTP API血缘图** (`neo4j-http-graph.html`) 🆕
+     - 使用Neo4j HTTP API避开Bolt协议限制
+     - vis.js渲染图形
+     - 支持完整Cypher查询
+     - 适合生产环境
+   - **服务器代理方案** (`neovis-proxy.html`) 🆕✨
+     - 通过服务器端代理解决所有连接问题
+     - 现代化自定义UI设计
+     - 完整的查询和可视化功能
+     - **推荐使用的最终方案**
 
 4. **Neo4j图数据库集成** 🆕
    - 创建`docker-compose-neo4j.yml`配置

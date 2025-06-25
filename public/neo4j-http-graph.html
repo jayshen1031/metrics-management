@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标血缘图谱 - Neo4j HTTP API</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    
+    <!-- vis.js for visualization -->
+    <script src="https://unpkg.com/vis-network@latest/standalone/umd/vis-network.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text-primary: #fff;
+            --text-secondary: #a8b2d1;
+            --border-color: #233554;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* 顶部导航栏 */
+        .navbar-custom {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff5252;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #4caf50;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 主要容器 */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 350px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .cypher-editor {
+            padding: 1rem;
+        }
+
+        .cypher-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .cypher-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .cypher-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .btn-custom {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary-custom {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary-custom {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* 快速查询 */
+        .quick-queries {
+            padding: 1rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .query-btn {
+            width: 100%;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            color: var(--text-primary);
+            text-align: left;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .query-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .query-btn i {
+            margin-right: 0.5rem;
+            color: #667eea;
+        }
+
+        /* 图谱容器 */
+        .graph-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
+        }
+
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 控制面板 */
+        .controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        /* 统计信息 */
+        .stats-panel {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 200px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* 加载和错误状态 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: var(--card-bg);
+            border: 1px solid #ff5252;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-color: #4caf50;
+        }
+
+        .toast.error {
+            border-color: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar-custom">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <h1 class="navbar-brand mb-0">
+                <i class="bi bi-diagram-3"></i> Neo4j 血缘图谱
+            </h1>
+            <div class="d-flex align-items-center gap-4">
+                <div class="connection-status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">检查连接...</span>
+                </div>
+                <a href="/" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-house"></i> 返回主页
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h5 class="mb-0">Cypher 查询</h5>
+            </div>
+            
+            <div class="cypher-editor">
+                <textarea class="cypher-input" id="cypherInput" placeholder="输入 Cypher 查询...">MATCH (n:Metric) RETURN n LIMIT 25</textarea>
+                <div class="cypher-controls">
+                    <button class="btn-custom btn-primary-custom" onclick="executeQuery()">
+                        <i class="bi bi-play-fill"></i> 执行
+                    </button>
+                    <button class="btn-custom btn-secondary-custom" onclick="clearQuery()">
+                        <i class="bi bi-x"></i> 清空
+                    </button>
+                </div>
+            </div>
+            
+            <div class="quick-queries">
+                <div class="section-title">快速查询</div>
+                
+                <button class="query-btn" onclick="loadQuery('MATCH (n:Metric) RETURN n')">
+                    <i class="bi bi-speedometer2"></i>
+                    <div>所有指标</div>
+                </button>
+                
+                <button class="query-btn" onclick="loadQuery(`MATCH (m:Metric {name: 'DAU'})-[r*1..3]-(n) RETURN m, r, n`)">
+                    <i class="bi bi-diagram-3"></i>
+                    <div>DAU 血缘关系</div>
+                </button>
+                
+                <button class="query-btn" onclick="loadQuery(`MATCH (t:Table)-[r]-(n) RETURN t, r, n LIMIT 50`)">
+                    <i class="bi bi-table"></i>
+                    <div>表关系图</div>
+                </button>
+                
+                <button class="query-btn" onclick="loadQuery(`MATCH (m1:Metric)-[r:DEPENDS_ON]->(m2:Metric) RETURN m1, r, m2`)">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <div>指标依赖</div>
+                </button>
+                
+                <button class="query-btn" onclick="loadQuery(`MATCH p=(t:Table)-[*..3]->(m:Metric) RETURN p LIMIT 50`)">
+                    <i class="bi bi-shuffle"></i>
+                    <div>数据流向</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- 图谱容器 -->
+        <div class="graph-container">
+            <div id="graph"></div>
+            
+            <!-- 控制按钮 -->
+            <div class="controls">
+                <button class="control-btn" onclick="zoomIn()" title="放大">
+                    <i class="bi bi-zoom-in"></i>
+                </button>
+                <button class="control-btn" onclick="zoomOut()" title="缩小">
+                    <i class="bi bi-zoom-out"></i>
+                </button>
+                <button class="control-btn" onclick="fitGraph()" title="适应屏幕">
+                    <i class="bi bi-arrows-angle-expand"></i>
+                </button>
+                <button class="control-btn" onclick="togglePhysics()" title="切换物理引擎">
+                    <i class="bi bi-lightning"></i>
+                </button>
+            </div>
+            
+            <!-- 统计面板 -->
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <span class="stat-label">节点数量</span>
+                    <span class="stat-value" id="nodeCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">关系数量</span>
+                    <span class="stat-value" id="edgeCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">查询耗时</span>
+                    <span class="stat-value" id="queryTime">0ms</span>
+                </div>
+            </div>
+            
+            <!-- 加载动画 -->
+            <div class="overlay" id="loadingOverlay" style="display: none;">
+                <div class="loading-spinner"></div>
+            </div>
+            
+            <!-- 错误提示 -->
+            <div class="overlay" id="errorOverlay" style="display: none;">
+                <div class="error-message">
+                    <h4>查询失败</h4>
+                    <p id="errorText">执行查询时发生错误</p>
+                    <button class="btn-custom btn-primary-custom mt-3" onclick="hideError()">
+                        确定
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 全局变量
+        let network = null;
+        let physicsEnabled = true;
+        const neo4jUrl = 'http://localhost:7474/db/neo4j/tx/commit';
+        const auth = 'Basic ' + btoa('neo4j:metrics123');
+
+        // 节点颜色配置
+        const nodeColors = {
+            'Metric': '#ff6b6b',
+            'Table': '#4ecdc4',
+            'Field': '#ffe66d',
+            'Report': '#a8e6cf',
+            'Dashboard': '#ff8b94',
+            'API': '#c7ceea'
+        };
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            initGraph();
+            executeQuery(); // 执行默认查询
+        });
+
+        // 检查连接
+        async function checkConnection() {
+            try {
+                const response = await fetch('http://localhost:7474/db/neo4j/query/v2', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': auth
+                    },
+                    body: JSON.stringify({
+                        statement: 'RETURN 1 as test'
+                    })
+                });
+
+                if (response.ok) {
+                    updateStatus(true);
+                } else {
+                    updateStatus(false);
+                }
+            } catch (error) {
+                updateStatus(false);
+                console.error('连接检查失败:', error);
+            }
+        }
+
+        // 更新连接状态
+        function updateStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+            }
+        }
+
+        // 初始化图谱
+        function initGraph() {
+            const container = document.getElementById('graph');
+            const data = { nodes: [], edges: [] };
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 25,
+                    font: {
+                        size: 14,
+                        color: '#ffffff',
+                        strokeWidth: 3,
+                        strokeColor: '#000000'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 2,
+                    color: { inherit: 'from' },
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.5
+                        }
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -8000,
+                        centralGravity: 0.3,
+                        springLength: 150,
+                        springConstant: 0.04,
+                        damping: 0.09,
+                        avoidOverlap: 0.5
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+            
+            // 节点点击事件
+            network.on("click", function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = network.body.data.nodes.get(nodeId);
+                    showToast(`节点: ${node.label} (${node.nodeType})`, 'success');
+                }
+            });
+        }
+
+        // 执行查询
+        async function executeQuery() {
+            const cypher = document.getElementById('cypherInput').value.trim();
+            if (!cypher) {
+                showToast('请输入查询语句', 'error');
+                return;
+            }
+
+            showLoading();
+            const startTime = Date.now();
+
+            try {
+                const response = await fetch(neo4jUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': auth,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        statements: [{
+                            statement: cypher,
+                            resultDataContents: ["graph", "row"]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const queryTime = Date.now() - startTime;
+
+                if (result.errors && result.errors.length > 0) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                // 处理结果
+                processResults(result.results[0]);
+                updateStats(queryTime);
+                hideLoading();
+                showToast('查询成功', 'success');
+
+            } catch (error) {
+                hideLoading();
+                showError(error.message);
+                console.error('查询错误:', error);
+            }
+        }
+
+        // 处理查询结果
+        function processResults(result) {
+            const nodes = new vis.DataSet();
+            const edges = new vis.DataSet();
+            const processedNodes = new Set();
+            const processedEdges = new Set();
+
+            if (result && result.data) {
+                result.data.forEach(row => {
+                    if (row.graph) {
+                        // 处理节点
+                        row.graph.nodes.forEach(node => {
+                            if (!processedNodes.has(node.id)) {
+                                const labels = node.labels || [];
+                                const nodeType = labels[0] || 'Unknown';
+                                const properties = node.properties || {};
+                                
+                                nodes.add({
+                                    id: node.id,
+                                    label: properties.name || properties.display_name || `Node ${node.id}`,
+                                    title: createTooltip(nodeType, properties),
+                                    color: nodeColors[nodeType] || '#999999',
+                                    nodeType: nodeType,
+                                    size: 25 + (properties.pagerank || 0) * 10
+                                });
+                                processedNodes.add(node.id);
+                            }
+                        });
+
+                        // 处理关系
+                        row.graph.relationships.forEach(rel => {
+                            const edgeId = `${rel.startNode}-${rel.type}-${rel.endNode}`;
+                            if (!processedEdges.has(edgeId)) {
+                                edges.add({
+                                    id: edgeId,
+                                    from: rel.startNode,
+                                    to: rel.endNode,
+                                    label: rel.type,
+                                    title: rel.type
+                                });
+                                processedEdges.add(edgeId);
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 更新图谱
+            network.setData({ nodes: nodes, edges: edges });
+            
+            // 更新统计
+            document.getElementById('nodeCount').textContent = nodes.length;
+            document.getElementById('edgeCount').textContent = edges.length;
+        }
+
+        // 创建工具提示
+        function createTooltip(type, properties) {
+            let html = `<div><strong>${type}</strong><br>`;
+            for (const [key, value] of Object.entries(properties)) {
+                if (value !== null && value !== undefined) {
+                    html += `${key}: ${value}<br>`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // 更新统计信息
+        function updateStats(queryTime) {
+            document.getElementById('queryTime').textContent = `${queryTime}ms`;
+        }
+
+        // 加载查询
+        function loadQuery(cypher) {
+            document.getElementById('cypherInput').value = cypher;
+            executeQuery();
+        }
+
+        // 清空查询
+        function clearQuery() {
+            document.getElementById('cypherInput').value = '';
+        }
+
+        // 控制功能
+        function zoomIn() {
+            network.moveTo({ scale: network.getScale() * 1.2 });
+        }
+
+        function zoomOut() {
+            network.moveTo({ scale: network.getScale() * 0.8 });
+        }
+
+        function fitGraph() {
+            network.fit();
+        }
+
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({ physics: { enabled: physicsEnabled } });
+        }
+
+        // UI 辅助函数
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorOverlay').style.display = 'flex';
+        }
+
+        function hideError() {
+            document.getElementById('errorOverlay').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                executeQuery();
+            }
+        });
+    </script>
+</body>
+</html>

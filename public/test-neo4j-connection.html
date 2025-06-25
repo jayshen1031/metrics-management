@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neo4j连接测试</title>
+    <script src="https://unpkg.com/neo4j-driver@5"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Neo4j 连接测试工具</h1>
+    
+    <div class="test-section info">
+        <h2>连接信息</h2>
+        <p><strong>Bolt URL:</strong> bolt://localhost:7687</p>
+        <p><strong>用户名:</strong> neo4j</p>
+        <p><strong>密码:</strong> metrics123</p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试选项</h2>
+        <button onclick="testDirectConnection()">测试直接连接</button>
+        <button onclick="testWithDifferentURLs()">测试不同URL格式</button>
+        <button onclick="testBasicQuery()">测试基础查询</button>
+        <button onclick="testHTTPEndpoint()">测试HTTP端点</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(title, content, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test-section ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            resultsDiv.appendChild(div);
+        }
+
+        // 测试直接连接
+        async function testDirectConnection() {
+            resultsDiv.innerHTML = '';
+            addResult('开始测试直接连接', '正在连接 bolt://localhost:7687...', true);
+            
+            const driver = neo4j.driver(
+                'bolt://localhost:7687',
+                neo4j.auth.basic('neo4j', 'metrics123')
+            );
+
+            try {
+                const serverInfo = await driver.getServerInfo();
+                addResult('连接成功！', JSON.stringify(serverInfo, null, 2), true);
+                
+                // 测试查询
+                const session = driver.session();
+                try {
+                    const result = await session.run('MATCH (n) RETURN count(n) as count LIMIT 1');
+                    const count = result.records[0].get('count');
+                    addResult('查询成功', `数据库中有 ${count} 个节点`, true);
+                } finally {
+                    await session.close();
+                }
+            } catch (error) {
+                addResult('连接失败', `错误: ${error.message}\n\n${error.stack}`, false);
+            } finally {
+                await driver.close();
+            }
+        }
+
+        // 测试不同的URL格式
+        async function testWithDifferentURLs() {
+            resultsDiv.innerHTML = '';
+            const urls = [
+                'bolt://localhost:7687',
+                'neo4j://localhost:7687',
+                'bolt://127.0.0.1:7687',
+                'neo4j://127.0.0.1:7687'
+            ];
+
+            for (const url of urls) {
+                try {
+                    const driver = neo4j.driver(
+                        url,
+                        neo4j.auth.basic('neo4j', 'metrics123')
+                    );
+                    await driver.getServerInfo();
+                    addResult(`✓ ${url}`, '连接成功', true);
+                    await driver.close();
+                } catch (error) {
+                    addResult(`✗ ${url}`, error.message, false);
+                }
+            }
+        }
+
+        // 测试基础查询
+        async function testBasicQuery() {
+            resultsDiv.innerHTML = '';
+            const driver = neo4j.driver(
+                'bolt://localhost:7687',
+                neo4j.auth.basic('neo4j', 'metrics123')
+            );
+
+            try {
+                const session = driver.session();
+                
+                // 测试不同的查询
+                const queries = [
+                    'RETURN 1 as test',
+                    'MATCH (n) RETURN labels(n)[0] as label, count(n) as count GROUP BY label',
+                    'MATCH (m:Metric) RETURN m.name LIMIT 5'
+                ];
+
+                for (const query of queries) {
+                    try {
+                        const result = await session.run(query);
+                        const records = result.records.map(r => r.toObject());
+                        addResult(`查询: ${query}`, JSON.stringify(records, null, 2), true);
+                    } catch (error) {
+                        addResult(`查询失败: ${query}`, error.message, false);
+                    }
+                }
+                
+                await session.close();
+            } catch (error) {
+                addResult('查询测试失败', error.message, false);
+            } finally {
+                await driver.close();
+            }
+        }
+
+        // 测试HTTP端点
+        async function testHTTPEndpoint() {
+            resultsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('http://localhost:7474/db/neo4j/query/v2', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa('neo4j:metrics123')
+                    },
+                    body: JSON.stringify({
+                        statement: 'RETURN 1 as test'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('HTTP API测试成功', JSON.stringify(data, null, 2), true);
+                } else {
+                    const text = await response.text();
+                    addResult('HTTP API测试失败', `状态码: ${response.status}\n${text}`, false);
+                }
+            } catch (error) {
+                addResult('HTTP请求失败', error.message, false);
+            }
+        }
+
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            testDirectConnection();
+        });
+    </script>
+</body>
+</html>

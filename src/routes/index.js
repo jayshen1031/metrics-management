@@ -7,6 +7,7 @@ const metadataRoutes = require('./metadata');
 const lineageRoutes = require('./lineage');
 const assetsRoutes = require('./assets');
 const systemRoutes = require('./system');
+const neo4jRoutes = require('./neo4j-proxy');
 
 // API版本前缀
 const API_VERSION = '/api/v1';
@@ -17,6 +18,7 @@ router.use(`${API_VERSION}/metadata`, metadataRoutes);
 router.use(`${API_VERSION}/lineage`, lineageRoutes);
 router.use(`${API_VERSION}/assets`, assetsRoutes);
 router.use(`${API_VERSION}/system`, systemRoutes);
+router.use(`${API_VERSION}/neo4j`, neo4jRoutes);
 
 // API根路径
 router.get(API_VERSION, (req, res) => {
@@ -29,7 +31,8 @@ router.get(API_VERSION, (req, res) => {
       metadata: `${API_VERSION}/metadata`,
       lineage: `${API_VERSION}/lineage`,
       assets: `${API_VERSION}/assets`,
-      system: `${API_VERSION}/system`
+      system: `${API_VERSION}/system`,
+      neo4j: `${API_VERSION}/neo4j`
     }
   });
 });

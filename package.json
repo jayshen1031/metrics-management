@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.4",
     "mysql2": "^3.6.0",
+    "neo4j-driver": "^5.28.1",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
