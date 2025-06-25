@@ -1,80 +1,142 @@
 # 指标管理系统 项目记忆
 
 ## 项目概述
-企业级指标管理系统，用于定义、计算、监控和分析各类业务指标。支持多种数据源集成，自动化指标计算，实时监控和趋势分析。
+企业级指标管理平台，提供数据资产管理、血缘分析、指标治理的一体化解决方案。集成DolphinScheduler和Doris，支持SQL血缘解析、可视化血缘图谱、指标全生命周期管理等功能。
 
 ## 技术栈
-- **后端**: Node.js + Express
-- **数据库**: MySQL 8.0
-- **认证**: JWT
-- **工具**: ESLint, Jest, Nodemon
-- **部署**: Docker (计划)
+- **后端**: Node.js + Express.js
+- **前端**: HTML5 + Bootstrap 5 + Vanilla JavaScript
+- **数据库**: MySQL 8.0 (utf8mb4字符集)
+- **缓存**: Redis 
+- **容器化**: Docker + Docker Compose
+- **代码编辑**: CodeMirror (SQL编辑器)
+- **可视化**: D3.js (血缘图谱)
+- **集成**: DolphinScheduler (Mock) + Doris (Mock)
 
 ## 项目结构
 ```
 metrics-management/
 ├── src/
-│   ├── app.js              # 应用入口
-│   ├── components/         # 可复用组件
-│   ├── pages/             # 页面组件
-│   ├── services/          # 业务逻辑服务
-│   │   └── MetricService.js # 指标服务
-│   └── utils/             # 工具函数
+│   ├── app.js                    # 应用入口
+│   ├── routes/                   # API路由
+│   │   ├── metrics.js           # 指标管理API
+│   │   ├── lineage.js           # 血缘分析API
+│   │   ├── metadata.js          # 元数据管理API
+│   │   ├── assets.js            # 数据资产API
+│   │   └── system.js            # 系统管理API
+│   ├── services/                # 业务逻辑服务
+│   │   ├── MetricService.js     # 指标服务
+│   │   ├── LineageAnalysisService.js # 血缘分析服务
+│   │   ├── MetricGovernanceService.js # 指标治理服务
+│   │   ├── DolphinSchedulerService.js # DS集成服务(Mock)
+│   │   └── DorisService.js      # Doris集成服务(Mock)
+│   └── utils/                   # 工具函数
+├── public/                      # 前端页面
+│   ├── navigation-v2.html       # 系统主页(Bootstrap风格)
+│   ├── metrics-list.html        # 指标列表管理
+│   ├── metrics-search.html      # 指标搜索页面
+│   ├── sql-analyzer.html        # SQL血缘分析工具
+│   ├── assets-catalog.html      # 数据资产目录
+│   ├── api-tester.html          # API测试工具
+│   ├── metric-lineage-graph.html # D3.js血缘图谱(优化版)
+│   ├── neovis-lineage.html      # Neovis.js专业血缘图
+│   ├── lineage-demo.html        # 血缘演示页面
+│   └── index.html               # 原系统首页
 ├── config/
-│   └── database.js        # 数据库配置
+│   ├── database.js              # 数据库配置
+│   └── 售前项目客户评级系统1.0.html # UI设计参考
 ├── scripts/
-│   └── init-database.sql  # 数据库初始化脚本
-├── tests/                 # 测试文件
-├── data/
-│   ├── input/            # 输入数据
-│   └── output/           # 输出数据
-├── docs/                 # 文档
-├── package.json          # 项目配置
-└── .env.example         # 环境变量示例
+│   ├── init-database.sql        # 数据库初始化
+│   ├── test-case-lineage.sql    # 测试数据
+│   ├── create-metric-governance-tables.sql # 指标治理表
+│   └── create-test-workflow.js  # 测试工作流创建
+├── tests/                       # 测试文件
+├── docs/                        # 文档
+├── docker-compose.yml           # Docker编排
+├── package.json                 # 项目配置
+└── .env.example                # 环境变量示例
 ```
 
 ## 核心功能
-1. **指标定义管理**
-   - 指标名称、描述、分类
-   - 计算公式和数据源配置
-   - 更新频率设置
-   - 指标搜索和分类统计
 
-2. **指标值管理**
-   - 历史数据存储
-   - 数据质量评分
-   - 趋势分析
-   - 批量导入导出
+### 1. 指标管理模块
+- **指标列表管理** (`/metrics-list.html`)
+  - 指标CRUD操作（创建、读取、更新、删除）
+  - 分类筛选（业务、用户、流量、技术、服务）
+  - 状态管理（启用/停用）
+  - 数据质量评分显示
+  - 批量操作和导入导出
+- **智能搜索** (`/metrics-search.html`)
+  - 关键词搜索与高亮显示
+  - 多维度筛选（分类、频率、质量）
+  - 高级搜索选项（时间范围、数据源）
+  - 搜索历史和快速筛选
 
-3. **目标管理**
-   - 多维度目标设置
-   - 目标达成率监控
+### 2. 血缘分析系统
+- **SQL血缘分析** (`/sql-analyzer.html`)
+  - CodeMirror SQL编辑器
+  - 支持多种SQL类型（INSERT、CREATE TABLE AS、MERGE等）
+  - 血缘关系解析和可视化
+  - 示例SQL模板
+- **可视化血缘图谱** (`/metric-lineage-graph.html`)
+  - D3.js实现的交互式图谱
+  - 支持6种节点类型（Table、Field、Metric、Report、Dashboard、API）
+  - 智能文字适配和节点大小自动调整
+  - 节点筛选、搜索、缩放功能
+  - 血缘路径分析
+- **Neo4j专业血缘图** (`/neovis-lineage.html`)
+  - 基于Neovis.js的专业级图谱可视化
+  - 真实Neo4j Browser界面风格
+  - Cypher查询语言支持
+  - 高级物理引擎和布局算法
+  - 专业级节点和关系渲染
 
-4. **平台连接集成**
-   - **DolphinScheduler集成**: 项目、工作流、任务元数据采集
-   - **Doris集成**: 数据库、表、列信息同步
-   - **元数据采集器**: 定时自动采集，支持手动触发
+### 3. 数据资产管理
+- **资产目录** (`/assets-catalog.html`)
+  - 统一资产目录展示
+  - 网格/列表视图切换
+  - 分类树导航（Doris表、DS工作流、DS任务）
+  - 资产详情查看和标签管理
+- **元数据采集**
+  - DolphinScheduler项目、工作流、任务信息
+  - Doris数据库、表、列信息
+  - 自动/手动采集机制
 
-5. **血缘分析系统**
-   - SQL血缘解析（INSERT、CREATE TABLE AS SELECT等）
-   - 表级血缘图构建
-   - 影响范围分析
-   - 血缘报告生成
-   - 上下游依赖关系查询
+### 4. 开发者工具
+- **API测试工具** (`/api-tester.html`)
+  - 可视化API测试界面
+  - 支持所有HTTP方法（GET、POST、PUT、DELETE）
+  - 请求历史记录
+  - 响应格式化显示
+- **系统导航中心** (`/navigation-v2.html`)
+  - Bootstrap 5统一设计风格
+  - 6大功能模块快速访问
+  - 实时系统状态监控
+  - 响应式设计
 
-6. **数据资产管理**
-   - 统一资产目录
-   - 资产搜索和分类
-   - 资产标签管理
-   - 资产详情查看
-   - 资产统计分析
+### 5. 平台集成
+- **DolphinScheduler集成** (Mock服务)
+  - 项目、工作流、任务元数据采集
+  - 任务依赖关系分析
+  - 调度信息同步
+- **Doris集成** (Mock服务)
+  - 数据库、表、列信息同步
+  - 表分区和统计信息
+  - 数据血缘关系构建
 
-7. **系统管理功能**
-   - 健康检查和监控
-   - 连接测试
-   - 数据清理和维护
-   - 配置导入导出
-   - 采集日志管理
+### 6. 指标治理体系
+- **指标元数据管理** (`metric_metadata`表)
+  - 完整生命周期管理
+  - 多维度分类和标签
+  - 质量监控和使用统计
+- **指标快照管理** (`metric_snapshots`表)
+  - 历史数据存储
+  - 趋势分析和对比
+  - 数据质量评分
+- **血缘依赖管理** (`metric_lineage`表)
+  - 指标间依赖关系
+  - 影响范围分析
+  - 变更影响评估
 
 ## 数据库表结构
 
@@ -214,31 +276,34 @@ NODE_ENV=development
 
 ## 部署状态与访问信息
 
-### ✅ 当前运行状态 (2025-06-24 最新)
+### ✅ 当前运行状态 (2025-06-25 最新)
 - **应用状态**: 正常运行
-- **前端界面**: http://localhost:3000 (可视化管理界面)
+- **系统主页**: http://localhost:3000/navigation-v2.html (Bootstrap设计风格)
 - **API服务**: http://localhost:3000/api/v1 (RESTful API)
 - **健康检查**: http://localhost:3000/health
-- **系统状态**: 🟢 所有服务健康 (Database、DolphinScheduler、Doris)
+- **系统状态**: 🟢 核心服务健康 (Database、Redis、Mock Services)
 - **数据库**: MySQL容器运行正常 (metrics-mysql:3307)
 - **缓存**: Redis容器运行正常 (metrics-redis:6379)
 - **DolphinScheduler**: Mock服务运行正常 (localhost:12345/dolphinscheduler)
 - **Doris**: Mock服务运行正常 (localhost:8030/api/health)
 
-### 🌐 前端功能
-- **系统监控**: 实时健康状态检查
-- **数据概览**: 资产统计和概览信息
-- **指标管理**: 指标列表查看和管理
-- **API测试**: 内置API接口测试工具
-- **响应式设计**: 支持桌面和移动端访问
+### 🌐 前端功能页面
+- **导航中心**: `/navigation-v2.html` - 系统主页，Bootstrap 5设计
+- **指标管理**: `/metrics-list.html` - 完整的指标CRUD操作
+- **指标搜索**: `/metrics-search.html` - 智能搜索与筛选
+- **SQL分析**: `/sql-analyzer.html` - CodeMirror SQL血缘分析工具
+- **资产目录**: `/assets-catalog.html` - 数据资产统一管理
+- **API测试**: `/api-tester.html` - 可视化API测试工具
+- **血缘图谱**: `/metric-lineage-graph.html` - D3.js交互式血缘图（已优化文字适配）
+- **Neo4j血缘图**: `/neovis-lineage.html` - 基于Neovis.js的专业级血缘图谱
+- **血缘演示**: `/lineage-demo.html` - 血缘关系演示页面
+- **原始主页**: `/index.html` - 原始系统监控页面
 
-### 📊 测试数据
-系统已包含5个示例指标：
-- 日活跃用户数 (用户指标)
-- 订单转化率 (业务指标)  
-- 客户满意度 (服务指标)
-- 页面访问量 (流量指标)
-- 系统可用性 (技术指标)
+### 📊 测试数据与案例
+- **示例指标**: 5个业务指标（日活、转化率、满意度等）
+- **测试血缘**: 6张测试表的完整血缘关系
+- **Mock工作流**: DolphinScheduler工作流和任务数据
+- **指标治理**: 完整的元数据、快照、血缘表结构
 
 ## 注意事项
 
@@ -258,6 +323,14 @@ NODE_ENV=development
 7. **DolphinScheduler连接问题** → 修复URL路径重复问题
 8. **Doris部署复杂性** → 使用Mock服务简化部署
 9. **系统健康检查失败** → 优化服务连接和检查逻辑
+10. **前端页面缺失** → 创建完整的功能页面体系
+11. **导航链接断开** → 更新所有导航链接到实际页面
+
+### 当前存在的问题
+1. **SQL参数绑定错误** - 部分API查询存在参数个数不匹配
+2. **表结构不一致** - data_lineage表缺少project_code和workflow_code字段
+3. **字段名不匹配** - SQL查询中的sql_content字段与实际表结构不符
+4. **空值处理** - 部分查询返回null值导致前端显示异常
 
 ### 配置要求  
 1. **字符集**: 数据库连接必须使用utf8mb4字符集
@@ -293,7 +366,61 @@ NODE_ENV=development
 
 ## 开发规范
 - 使用ESLint进行代码检查
-- 编写单元测试
 - 遵循RESTful API设计
 - 使用环境变量管理配置
 - 错误处理和日志记录
+- 前端页面统一使用Bootstrap 5设计风格
+- 所有页面包含返回导航中心的链接
+- API接口统一返回JSON格式 {success: boolean, data: any, message?: string}
+
+## 最新更新记录 (2025-06-25)
+
+### ✅ 完成项目
+1. **创建完整前端页面体系**
+   - `metrics-list.html` - 指标列表管理页面
+   - `metrics-search.html` - 指标搜索页面  
+   - `sql-analyzer.html` - SQL血缘分析工具
+   - `assets-catalog.html` - 数据资产目录
+   - `api-tester.html` - API测试工具
+
+2. **统一导航系统**
+   - 确定`navigation-v2.html`为系统主页
+   - 更新所有导航链接指向实际功能页面
+   - 采用Bootstrap 5统一设计风格
+
+3. **血缘图谱可视化优化**
+   - **D3.js血缘图优化** (`metric-lineage-graph.html`)
+     - 智能文字适配：根据文字长度动态调整节点大小
+     - 智能文字截断：长文字自动截断并显示省略号
+     - 自适应字体大小：不同长度文字使用合适字体
+     - 完整文字tooltip：hover显示完整节点名称
+     - 动态碰撞检测：防止节点重叠，优化布局
+   - **Neovis.js专业血缘图** (`neovis-lineage.html`) 🆕
+     - 基于Neovis.js构建的专业级Neo4j风格图谱
+     - 真实Neo4j Browser界面设计
+     - Cypher查询语言支持
+     - 高级物理引擎（Force Atlas 2、分层布局等）
+     - 专业级节点渲染和关系可视化
+     - 预设查询模板和交互式控制面板
+
+4. **功能特性完善**
+   - CodeMirror SQL编辑器集成
+   - 响应式设计适配移动端
+   - API测试工具支持历史记录
+
+### 🔄 待完善项目
+1. **数据库问题修复**
+   - 修复SQL参数绑定错误
+   - 统一表结构和字段命名
+   - 完善错误处理机制
+
+2. **功能页面补充**
+   - 指标分类管理页面
+   - 系统配置管理页面
+   - 采集日志查看页面
+   - Mock数据管理工具
+
+3. **性能优化**
+   - API响应时间优化
+   - 前端页面加载优化
+   - 大数据量查询分页处理

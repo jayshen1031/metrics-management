@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标列表 - 指标管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --level-1: 1.3rem;   /* 主标题 */
+            --level-2: 1.1rem;   /* 主分类 */
+            --level-3: 1.0rem;   /* 字段标签 */
+            --level-4: 0.95rem;  /* 选项文字 */
+            --level-5: 0.85rem;  /* 描述文字 */
+            --primary-color: #1a2980;
+            --secondary-color: #26d0ce;
+            --accent-color: #3498db;
+            --card-hover: #e3f2fd;
+            --border-color: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            padding-bottom: 30px;
+            
+            /* 背景网格 */
+            background-image: 
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%),
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%);
+            background-size: 300px 300px;
+            background-position: 0 0, 150px 150px;
+        }
+        
+        .header-container {
+            background: linear-gradient(to right, #1a2980, #26d0ce);
+            padding: 22px 0;
+            margin-bottom: 30px;
+            color: white;
+            border-bottom: 5px solid #3498db;
+        }
+        
+        .header-container h1 {
+            font-size: var(--level-1);
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .header-container p {
+            font-size: var(--level-4);
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .breadcrumb-container {
+            background: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .action-bar {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .metrics-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .category-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+        
+        .quality-score {
+            font-weight: bold;
+        }
+        
+        .quality-high { color: #27ae60; }
+        .quality-medium { color: #f39c12; }
+        .quality-low { color: #e74c3c; }
+        
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="container">
+            <h1 class="text-center mb-0"><i class="bi bi-graph-up"></i> 指标列表</h1>
+            <p class="text-center mb-0 opacity-75">管理和监控所有业务指标</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 返回按钮 -->
+        <div class="mb-3">
+            <a href="/" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> 返回主页
+            </a>
+        </div>
+        
+        <!-- 面包屑导航 -->
+        <div class="breadcrumb-container">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/">首页</a></li>
+                    <li class="breadcrumb-item">指标管理</li>
+                    <li class="breadcrumb-item active" aria-current="page">指标列表</li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- 操作栏 -->
+        <div class="action-bar">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" placeholder="搜索指标名称、描述...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-primary" onclick="showCreateModal()">
+                        <i class="bi bi-plus-circle"></i> 新建指标
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="refreshMetrics()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                    <a href="/metrics-import-export.html" class="btn btn-outline-secondary">
+                        <i class="bi bi-download"></i> 导入/导出
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 筛选器 -->
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">所有分类</option>
+                        <option value="business">业务指标</option>
+                        <option value="user">用户指标</option>
+                        <option value="traffic">流量指标</option>
+                        <option value="technical">技术指标</option>
+                        <option value="service">服务指标</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">所有状态</option>
+                        <option value="active">启用</option>
+                        <option value="inactive">停用</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="frequencyFilter">
+                        <option value="">所有频率</option>
+                        <option value="daily">每日</option>
+                        <option value="weekly">每周</option>
+                        <option value="monthly">每月</option>
+                        <option value="realtime">实时</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="qualityFilter">
+                        <option value="">所有质量</option>
+                        <option value="high">高质量 (80+)</option>
+                        <option value="medium">中质量 (50-79)</option>
+                        <option value="low">低质量 (<50)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 指标表格 -->
+        <div class="metrics-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" class="form-check-input" id="selectAll"></th>
+                            <th>指标名称</th>
+                            <th>分类</th>
+                            <th>计算公式</th>
+                            <th>更新频率</th>
+                            <th>数据质量</th>
+                            <th>状态</th>
+                            <th>最后更新</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metricsTableBody">
+                        <!-- 动态加载内容 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            <div class="p-3 border-top">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0" id="pagination">
+                        <!-- 动态生成分页 -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 创建/编辑指标模态框 -->
+    <div class="modal fade" id="metricModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">新建指标</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="metricForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">指标名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="metricName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">分类 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="metricCategory" required>
+                                    <option value="">请选择</option>
+                                    <option value="business">业务指标</option>
+                                    <option value="user">用户指标</option>
+                                    <option value="traffic">流量指标</option>
+                                    <option value="technical">技术指标</option>
+                                    <option value="service">服务指标</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <textarea class="form-control" id="metricDescription" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">计算公式 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="metricFormula" required 
+                                   placeholder="例如: (转化用户数 / 总用户数) * 100">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">更新频率 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="metricFrequency" required>
+                                    <option value="">请选择</option>
+                                    <option value="realtime">实时</option>
+                                    <option value="daily">每日</option>
+                                    <option value="weekly">每周</option>
+                                    <option value="monthly">每月</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">数据源</label>
+                                <select class="form-select" id="metricDataSource">
+                                    <option value="doris">Doris</option>
+                                    <option value="mysql">MySQL</option>
+                                    <option value="api">API</option>
+                                    <option value="manual">手动输入</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">单位</label>
+                            <input type="text" class="form-control" id="metricUnit" placeholder="例如: %, 次, 元">
+                        </div>
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="metricStatus" checked>
+                            <label class="form-check-label" for="metricStatus">
+                                启用此指标
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveMetric()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 水印 -->
+    <div class="watermark">Metrics Platform v1.0</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let metrics = [];
+        let currentPage = 1;
+        const pageSize = 10;
+        let editingMetricId = null;
+        
+        // 加载指标列表
+        async function loadMetrics() {
+            try {
+                const response = await fetch('/api/v1/metrics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    metrics = data.data;
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('加载指标失败:', error);
+                showAlert('加载指标失败，请刷新重试', 'danger');
+            }
+        }
+        
+        // 应用筛选器
+        function applyFilters() {
+            let filtered = [...metrics];
+            
+            // 搜索过滤
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (searchTerm) {
+                filtered = filtered.filter(m => 
+                    m.name.toLowerCase().includes(searchTerm) ||
+                    (m.description && m.description.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // 分类过滤
+            const category = document.getElementById('categoryFilter').value;
+            if (category) {
+                filtered = filtered.filter(m => m.category === category);
+            }
+            
+            // 状态过滤
+            const status = document.getElementById('statusFilter').value;
+            if (status) {
+                filtered = filtered.filter(m => m.status === status);
+            }
+            
+            // 频率过滤
+            const frequency = document.getElementById('frequencyFilter').value;
+            if (frequency) {
+                filtered = filtered.filter(m => m.update_frequency === frequency);
+            }
+            
+            // 质量过滤
+            const quality = document.getElementById('qualityFilter').value;
+            if (quality) {
+                filtered = filtered.filter(m => {
+                    const score = m.data_quality_score || 0;
+                    if (quality === 'high') return score >= 80;
+                    if (quality === 'medium') return score >= 50 && score < 80;
+                    if (quality === 'low') return score < 50;
+                    return true;
+                });
+            }
+            
+            renderTable(filtered);
+        }
+        
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.getElementById('metricsTableBody');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageData = data.slice(start, end);
+            
+            tbody.innerHTML = pageData.map(metric => {
+                const qualityClass = metric.data_quality_score >= 80 ? 'quality-high' :
+                                   metric.data_quality_score >= 50 ? 'quality-medium' : 'quality-low';
+                
+                return `
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input metric-select" value="${metric.id}"></td>
+                        <td>
+                            <strong>${metric.name}</strong>
+                            ${metric.description ? `<br><small class="text-muted">${metric.description}</small>` : ''}
+                        </td>
+                        <td><span class="category-badge">${getCategoryName(metric.category)}</span></td>
+                        <td><code>${metric.calculation_formula || '-'}</code></td>
+                        <td>${getFrequencyName(metric.update_frequency)}</td>
+                        <td><span class="${qualityClass}">${metric.data_quality_score || 0}%</span></td>
+                        <td>
+                            <span class="status-badge ${metric.status === 'active' ? 'status-active' : 'status-inactive'}">
+                                ${metric.status === 'active' ? '启用' : '停用'}
+                            </span>
+                        </td>
+                        <td>${formatDate(metric.updated_at)}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/metric-detail.html?id=${metric.id}" class="btn btn-outline-primary" title="查看">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-primary" onclick="editMetric(${metric.id})" title="编辑">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteMetric(${metric.id})" title="删除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // 更新分页
+            renderPagination(data.length);
+        }
+        
+        // 渲染分页
+        function renderPagination(totalItems) {
+            const totalPages = Math.ceil(totalItems / pageSize);
+            const pagination = document.getElementById('pagination');
+            
+            let html = `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+                </li>
+            `;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    html += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                        </li>
+                    `;
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    html += `<li class="page-item disabled"><a class="page-link">...</a></li>`;
+                }
+            }
+            
+            html += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+                </li>
+            `;
+            
+            pagination.innerHTML = html;
+        }
+        
+        // 切换页面
+        function changePage(page) {
+            currentPage = page;
+            applyFilters();
+        }
+        
+        // 显示创建模态框
+        function showCreateModal() {
+            editingMetricId = null;
+            document.getElementById('modalTitle').textContent = '新建指标';
+            document.getElementById('metricForm').reset();
+            new bootstrap.Modal(document.getElementById('metricModal')).show();
+        }
+        
+        // 编辑指标
+        function editMetric(id) {
+            const metric = metrics.find(m => m.id === id);
+            if (!metric) return;
+            
+            editingMetricId = id;
+            document.getElementById('modalTitle').textContent = '编辑指标';
+            
+            document.getElementById('metricName').value = metric.name;
+            document.getElementById('metricCategory').value = metric.category;
+            document.getElementById('metricDescription').value = metric.description || '';
+            document.getElementById('metricFormula').value = metric.calculation_formula || '';
+            document.getElementById('metricFrequency').value = metric.update_frequency;
+            document.getElementById('metricDataSource').value = metric.data_source || 'doris';
+            document.getElementById('metricUnit').value = metric.unit || '';
+            document.getElementById('metricStatus').checked = metric.status === 'active';
+            
+            new bootstrap.Modal(document.getElementById('metricModal')).show();
+        }
+        
+        // 保存指标
+        async function saveMetric() {
+            const data = {
+                name: document.getElementById('metricName').value,
+                category: document.getElementById('metricCategory').value,
+                description: document.getElementById('metricDescription').value,
+                calculation_formula: document.getElementById('metricFormula').value,
+                update_frequency: document.getElementById('metricFrequency').value,
+                data_source: document.getElementById('metricDataSource').value,
+                unit: document.getElementById('metricUnit').value,
+                status: document.getElementById('metricStatus').checked ? 'active' : 'inactive'
+            };
+            
+            try {
+                const url = editingMetricId ? `/api/v1/metrics/${editingMetricId}` : '/api/v1/metrics';
+                const method = editingMetricId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('metricModal')).hide();
+                    showAlert(editingMetricId ? '指标更新成功' : '指标创建成功', 'success');
+                    loadMetrics();
+                } else {
+                    showAlert(result.message || '操作失败', 'danger');
+                }
+            } catch (error) {
+                console.error('保存指标失败:', error);
+                showAlert('保存失败，请重试', 'danger');
+            }
+        }
+        
+        // 删除指标
+        async function deleteMetric(id) {
+            if (!confirm('确定要删除这个指标吗？')) return;
+            
+            try {
+                const response = await fetch(`/api/v1/metrics/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('指标删除成功', 'success');
+                    loadMetrics();
+                } else {
+                    showAlert(result.message || '删除失败', 'danger');
+                }
+            } catch (error) {
+                console.error('删除指标失败:', error);
+                showAlert('删除失败，请重试', 'danger');
+            }
+        }
+        
+        // 刷新指标
+        function refreshMetrics() {
+            loadMetrics();
+            showAlert('指标列表已刷新', 'info');
+        }
+        
+        // 显示提示信息
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+        
+        // 辅助函数
+        function getCategoryName(category) {
+            const names = {
+                'business': '业务指标',
+                'user': '用户指标',
+                'traffic': '流量指标',
+                'technical': '技术指标',
+                'service': '服务指标'
+            };
+            return names[category] || category;
+        }
+        
+        function getFrequencyName(frequency) {
+            const names = {
+                'realtime': '实时',
+                'daily': '每日',
+                'weekly': '每周',
+                'monthly': '每月'
+            };
+            return names[frequency] || frequency;
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // 全选/取消全选
+        document.getElementById('selectAll').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.metric-select');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+        
+        // 监听筛选器变化
+        ['searchInput', 'categoryFilter', 'statusFilter', 'frequencyFilter', 'qualityFilter'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                currentPage = 1;
+                applyFilters();
+            });
+        });
+        
+        // 搜索框实时搜索
+        document.getElementById('searchInput').addEventListener('input', () => {
+            currentPage = 1;
+            applyFilters();
+        });
+        
+        // 页面加载时初始化
+        window.onload = function() {
+            loadMetrics();
+        };
+    </script>
+</body>
+</html>

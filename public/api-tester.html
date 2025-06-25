@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试工具 - 指标管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css">
+    <style>
+        :root {
+            --level-1: 1.3rem;   /* 主标题 */
+            --level-2: 1.1rem;   /* 主分类 */
+            --level-3: 1.0rem;   /* 字段标签 */
+            --level-4: 0.95rem;  /* 选项文字 */
+            --level-5: 0.85rem;  /* 描述文字 */
+            --primary-color: #1a2980;
+            --secondary-color: #26d0ce;
+            --accent-color: #3498db;
+            --card-hover: #e3f2fd;
+            --border-color: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            padding-bottom: 30px;
+            
+            /* 背景网格 */
+            background-image: 
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%),
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%);
+            background-size: 300px 300px;
+            background-position: 0 0, 150px 150px;
+        }
+        
+        .header-container {
+            background: linear-gradient(to right, #1a2980, #26d0ce);
+            padding: 22px 0;
+            margin-bottom: 30px;
+            color: white;
+            border-bottom: 5px solid #3498db;
+        }
+        
+        .header-container h1 {
+            font-size: var(--level-1);
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .header-container p {
+            font-size: var(--level-4);
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .api-container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+        
+        .api-sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow-y: auto;
+        }
+        
+        .api-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .api-group {
+            border-bottom: 1px solid #eee;
+            padding: 15px;
+        }
+        
+        .api-group:last-child {
+            border-bottom: none;
+        }
+        
+        .api-group-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .api-item {
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .api-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .api-item.active {
+            background: #e3f2fd;
+            color: #1976d2;
+            font-weight: 600;
+        }
+        
+        .method-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .method-get { background: #d4edda; color: #155724; }
+        .method-post { background: #cce7ff; color: #004085; }
+        .method-put { background: #fff3cd; color: #856404; }
+        .method-delete { background: #f8d7da; color: #721c24; }
+        
+        .request-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            flex: 1;
+        }
+        
+        .response-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            flex: 1;
+        }
+        
+        .CodeMirror {
+            height: 200px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        
+        .response-tabs {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 15px;
+        }
+        
+        .response-tab {
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .response-tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status-200 { background: #d4edda; color: #155724; }
+        .status-400 { background: #fff3cd; color: #856404; }
+        .status-500 { background: #f8d7da; color: #721c24; }
+        
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+        }
+        
+        @media (max-width: 768px) {
+            .api-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .api-sidebar {
+                width: 100%;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="container">
+            <h1 class="text-center mb-0"><i class="bi bi-terminal"></i> API测试工具</h1>
+            <p class="text-center mb-0 opacity-75">测试和调试平台API接口</p>
+        </div>
+    </div>
+    
+    <div class="container-fluid">
+        <!-- 返回按钮 -->
+        <div class="mb-3 ms-3">
+            <a href="/" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> 返回主页
+            </a>
+        </div>
+        
+        <div class="api-container">
+            <!-- 左侧API列表 -->
+            <div class="api-sidebar">
+                <div class="p-3">
+                    <h5 class="mb-3">API接口</h5>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control form-control-sm" 
+                               id="apiSearch" placeholder="搜索API...">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="searchAPIs()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="apiGroups">
+                    <!-- 系统基础 -->
+                    <div class="api-group">
+                        <div class="api-group-title" onclick="toggleGroup(this)">
+                            <i class="bi bi-chevron-down"></i>
+                            <span>系统基础</span>
+                        </div>
+                        <div class="api-items">
+                            <div class="api-item" onclick="selectAPI('GET', '/health', '健康检查')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/health</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1', 'API信息')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/system/health', '系统健康')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/system/health</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/system/info', '系统信息')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/system/info</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 指标管理 -->
+                    <div class="api-group">
+                        <div class="api-group-title" onclick="toggleGroup(this)">
+                            <i class="bi bi-chevron-down"></i>
+                            <span>指标管理</span>
+                        </div>
+                        <div class="api-items">
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/metrics', '获取指标列表')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/metrics</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('POST', '/api/v1/metrics', '创建指标')">
+                                <span class="method-badge method-post">POST</span>
+                                <span>/api/v1/metrics</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/metrics/{id}', '获取指标详情')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/metrics/{id}</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('PUT', '/api/v1/metrics/{id}', '更新指标')">
+                                <span class="method-badge method-put">PUT</span>
+                                <span>/api/v1/metrics/{id}</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('DELETE', '/api/v1/metrics/{id}', '删除指标')">
+                                <span class="method-badge method-delete">DELETE</span>
+                                <span>/api/v1/metrics/{id}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 血缘分析 -->
+                    <div class="api-group">
+                        <div class="api-group-title" onclick="toggleGroup(this)">
+                            <i class="bi bi-chevron-down"></i>
+                            <span>血缘分析</span>
+                        </div>
+                        <div class="api-items">
+                            <div class="api-item" onclick="selectAPI('POST', '/api/v1/lineage/analyze-sql', 'SQL血缘分析')">
+                                <span class="method-badge method-post">POST</span>
+                                <span>/api/v1/lineage/analyze-sql</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/lineage/table/{tableName}', '表血缘图')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/lineage/table/{tableName}</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/lineage/statistics', '血缘统计')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/lineage/statistics</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 元数据管理 -->
+                    <div class="api-group">
+                        <div class="api-group-title" onclick="toggleGroup(this)">
+                            <i class="bi bi-chevron-down"></i>
+                            <span>元数据管理</span>
+                        </div>
+                        <div class="api-items">
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/metadata/overview', '数据概览')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/metadata/overview</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('POST', '/api/v1/metadata/collect', '触发采集')">
+                                <span class="method-badge method-post">POST</span>
+                                <span>/api/v1/metadata/collect</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/metadata/doris/databases', 'Doris数据库')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/metadata/doris/databases</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据资产 -->
+                    <div class="api-group">
+                        <div class="api-group-title" onclick="toggleGroup(this)">
+                            <i class="bi bi-chevron-down"></i>
+                            <span>数据资产</span>
+                        </div>
+                        <div class="api-items">
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/assets/catalog', '资产目录')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/assets/catalog</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/assets/search', '资产搜索')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/assets/search</span>
+                            </div>
+                            <div class="api-item" onclick="selectAPI('GET', '/api/v1/assets/statistics', '资产统计')">
+                                <span class="method-badge method-get">GET</span>
+                                <span>/api/v1/assets/statistics</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧测试区域 -->
+            <div class="api-main">
+                <!-- 请求面板 -->
+                <div class="request-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">请求配置</h5>
+                        <button class="btn btn-primary" onclick="sendRequest()">
+                            <i class="bi bi-send"></i> 发送请求
+                        </button>
+                    </div>
+                    
+                    <!-- URL配置 -->
+                    <div class="row mb-3">
+                        <div class="col-md-2">
+                            <select class="form-select" id="methodSelect">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-10">
+                            <input type="text" class="form-control" id="urlInput" 
+                                   placeholder="请输入API端点，例如: /api/v1/metrics">
+                        </div>
+                    </div>
+                    
+                    <!-- 请求参数 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>请求头 (Headers)</h6>
+                            <textarea class="form-control" id="headersInput" rows="3" 
+                                      placeholder='{"Content-Type": "application/json"}'></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>请求参数 (Query Params)</h6>
+                            <textarea class="form-control" id="paramsInput" rows="3" 
+                                      placeholder='{"limit": 10, "offset": 0}'></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>请求体 (Body)</h6>
+                        <textarea id="bodyEditor" placeholder="请求体内容..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- 响应面板 -->
+                <div class="response-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">响应结果</h5>
+                        <div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearResponse()">
+                                <i class="bi bi-trash"></i> 清空
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="copyResponse()">
+                                <i class="bi bi-clipboard"></i> 复制
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 响应状态 -->
+                    <div id="responseStatus" class="mb-3" style="display: none;">
+                        状态码: <span id="statusCode"></span>
+                        响应时间: <span id="responseTime"></span>ms
+                        大小: <span id="responseSize"></span>
+                    </div>
+                    
+                    <!-- 响应标签页 -->
+                    <div class="response-tabs">
+                        <button class="response-tab active" onclick="switchTab('body')">响应体</button>
+                        <button class="response-tab" onclick="switchTab('headers')">响应头</button>
+                        <button class="response-tab" onclick="switchTab('history')">历史记录</button>
+                    </div>
+                    
+                    <!-- 响应内容 -->
+                    <div id="responseBody" class="response-content">
+                        <div class="text-center text-muted p-5">
+                            <i class="bi bi-info-circle display-1"></i>
+                            <p class="mt-3">点击"发送请求"开始测试API</p>
+                        </div>
+                    </div>
+                    
+                    <div id="responseHeaders" class="response-content" style="display: none;">
+                        <pre id="headersContent"></pre>
+                    </div>
+                    
+                    <div id="responseHistory" class="response-content" style="display: none;">
+                        <div id="historyList">
+                            <div class="text-center text-muted p-3">
+                                暂无历史记录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- 水印 -->
+    <div class="watermark">Metrics Platform v1.0</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+    <script>
+        let bodyEditor;
+        let requestHistory = [];
+        let currentRequest = null;
+        
+        // 初始化
+        function init() {
+            // 初始化代码编辑器
+            bodyEditor = CodeMirror.fromTextArea(document.getElementById('bodyEditor'), {
+                mode: 'application/json',
+                lineNumbers: true,
+                lineWrapping: true,
+                theme: 'default'
+            });
+            
+            // 设置默认请求头
+            document.getElementById('headersInput').value = JSON.stringify({
+                "Content-Type": "application/json"
+            }, null, 2);
+            
+            // 加载历史记录
+            loadHistory();
+        }
+        
+        // 选择API
+        function selectAPI(method, url, description) {
+            // 更新选中状态
+            document.querySelectorAll('.api-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // 设置请求配置
+            document.getElementById('methodSelect').value = method;
+            document.getElementById('urlInput').value = url;
+            
+            // 根据API类型设置示例数据
+            setExampleData(method, url);
+        }
+        
+        // 设置示例数据
+        function setExampleData(method, url) {
+            if (method === 'POST' || method === 'PUT') {
+                if (url.includes('/metrics')) {
+                    bodyEditor.setValue(JSON.stringify({
+                        "name": "示例指标",
+                        "category": "business",
+                        "description": "这是一个示例指标",
+                        "calculation_formula": "SUM(amount) / COUNT(*)",
+                        "update_frequency": "daily",
+                        "unit": "%"
+                    }, null, 2));
+                } else if (url.includes('/analyze-sql')) {
+                    bodyEditor.setValue(JSON.stringify({
+                        "sql": "INSERT INTO target_table SELECT * FROM source_table WHERE date = '2024-01-01'"
+                    }, null, 2));
+                } else if (url.includes('/collect')) {
+                    bodyEditor.setValue(JSON.stringify({
+                        "force": true,
+                        "sources": ["doris", "dolphinscheduler"]
+                    }, null, 2));
+                }
+            } else {
+                bodyEditor.setValue('');
+            }
+            
+            // 设置查询参数示例
+            if (method === 'GET') {
+                if (url.includes('/metrics')) {
+                    document.getElementById('paramsInput').value = JSON.stringify({
+                        "limit": 10,
+                        "offset": 0,
+                        "category": "business"
+                    }, null, 2);
+                } else if (url.includes('/search')) {
+                    document.getElementById('paramsInput').value = JSON.stringify({
+                        "keyword": "revenue",
+                        "type": "table"
+                    }, null, 2);
+                } else {
+                    document.getElementById('paramsInput').value = '';
+                }
+            }
+        }
+        
+        // 发送请求
+        async function sendRequest() {
+            const method = document.getElementById('methodSelect').value;
+            let url = document.getElementById('urlInput').value;
+            
+            if (!url) {
+                alert('请输入API端点');
+                return;
+            }
+            
+            // 处理路径参数
+            if (url.includes('{id}')) {
+                const id = prompt('请输入ID:');
+                if (!id) return;
+                url = url.replace('{id}', id);
+            }
+            
+            if (url.includes('{tableName}')) {
+                const tableName = prompt('请输入表名:');
+                if (!tableName) return;
+                url = url.replace('{tableName}', tableName);
+            }
+            
+            const startTime = performance.now();
+            
+            try {
+                // 构建请求配置
+                const config = {
+                    method: method,
+                    headers: {}
+                };
+                
+                // 解析请求头
+                const headersText = document.getElementById('headersInput').value;
+                if (headersText) {
+                    try {
+                        config.headers = JSON.parse(headersText);
+                    } catch (e) {
+                        alert('请求头格式错误');
+                        return;
+                    }
+                }
+                
+                // 解析查询参数
+                const paramsText = document.getElementById('paramsInput').value;
+                if (paramsText && method === 'GET') {
+                    try {
+                        const params = JSON.parse(paramsText);
+                        const urlParams = new URLSearchParams(params);
+                        url += '?' + urlParams.toString();
+                    } catch (e) {
+                        alert('查询参数格式错误');
+                        return;
+                    }
+                }
+                
+                // 添加请求体
+                if (method !== 'GET' && method !== 'DELETE') {
+                    const bodyText = bodyEditor.getValue();
+                    if (bodyText) {
+                        config.body = bodyText;
+                    }
+                }
+                
+                // 发送请求
+                const response = await fetch(url, config);
+                const endTime = performance.now();
+                
+                // 获取响应数据
+                const responseData = await response.json();
+                const responseTime = Math.round(endTime - startTime);
+                const responseSize = JSON.stringify(responseData).length;
+                
+                // 显示结果
+                displayResponse(response, responseData, responseTime, responseSize);
+                
+                // 保存到历史记录
+                saveToHistory(method, url, config, response, responseData, responseTime);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const responseTime = Math.round(endTime - startTime);
+                
+                displayError(error, responseTime);
+                console.error('请求失败:', error);
+            }
+        }
+        
+        // 显示响应结果
+        function displayResponse(response, data, responseTime, responseSize) {
+            // 显示状态信息
+            const statusEl = document.getElementById('responseStatus');
+            statusEl.style.display = 'block';
+            
+            const statusCode = document.getElementById('statusCode');
+            statusCode.textContent = response.status;
+            statusCode.className = `status-badge status-${Math.floor(response.status / 100) * 100}`;
+            
+            document.getElementById('responseTime').textContent = responseTime;
+            document.getElementById('responseSize').textContent = formatBytes(responseSize);
+            
+            // 显示响应体
+            const responseBody = document.getElementById('responseBody');
+            responseBody.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            
+            // 显示响应头
+            const headers = {};
+            response.headers.forEach((value, key) => {
+                headers[key] = value;
+            });
+            document.getElementById('headersContent').textContent = JSON.stringify(headers, null, 2);
+        }
+        
+        // 显示错误
+        function displayError(error, responseTime) {
+            const statusEl = document.getElementById('responseStatus');
+            statusEl.style.display = 'block';
+            
+            const statusCode = document.getElementById('statusCode');
+            statusCode.textContent = 'ERROR';
+            statusCode.className = 'status-badge status-500';
+            
+            document.getElementById('responseTime').textContent = responseTime;
+            document.getElementById('responseSize').textContent = '-';
+            
+            const responseBody = document.getElementById('responseBody');
+            responseBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> 请求失败</h6>
+                    <p class="mb-0">${error.message}</p>
+                </div>
+            `;
+        }
+        
+        // 保存到历史记录
+        function saveToHistory(method, url, config, response, data, responseTime) {
+            const historyItem = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                method: method,
+                url: url,
+                status: response.status,
+                responseTime: responseTime,
+                request: config,
+                response: data
+            };
+            
+            requestHistory.unshift(historyItem);
+            
+            // 限制历史记录数量
+            if (requestHistory.length > 50) {
+                requestHistory = requestHistory.slice(0, 50);
+            }
+            
+            // 保存到本地存储
+            localStorage.setItem('apiTestHistory', JSON.stringify(requestHistory));
+            
+            // 更新历史记录显示
+            updateHistoryDisplay();
+        }
+        
+        // 更新历史记录显示
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            
+            if (requestHistory.length === 0) {
+                historyList.innerHTML = `
+                    <div class="text-center text-muted p-3">
+                        暂无历史记录
+                    </div>
+                `;
+                return;
+            }
+            
+            historyList.innerHTML = requestHistory.map(item => `
+                <div class="history-item" onclick="loadFromHistory('${item.id}')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="method-badge method-${item.method.toLowerCase()}">${item.method}</span>
+                            <span class="ms-2">${item.url}</span>
+                        </div>
+                        <div class="text-end">
+                            <span class="status-badge status-${Math.floor(item.status / 100) * 100}">${item.status}</span>
+                            <small class="text-muted d-block">${formatTime(item.timestamp)}</small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 从历史记录加载
+        function loadFromHistory(id) {
+            const item = requestHistory.find(h => h.id == id);
+            if (!item) return;
+            
+            document.getElementById('methodSelect').value = item.method;
+            document.getElementById('urlInput').value = item.url;
+            
+            if (item.request.headers) {
+                document.getElementById('headersInput').value = JSON.stringify(item.request.headers, null, 2);
+            }
+            
+            if (item.request.body) {
+                bodyEditor.setValue(item.request.body);
+            }
+            
+            // 显示响应
+            displayResponse({status: item.status, headers: new Map()}, item.response, item.responseTime, 0);
+        }
+        
+        // 加载历史记录
+        function loadHistory() {
+            const saved = localStorage.getItem('apiTestHistory');
+            if (saved) {
+                try {
+                    requestHistory = JSON.parse(saved);
+                    updateHistoryDisplay();
+                } catch (e) {
+                    console.error('加载历史记录失败:', e);
+                }
+            }
+        }
+        
+        // 切换响应标签页
+        function switchTab(tab) {
+            // 更新标签状态
+            document.querySelectorAll('.response-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 显示对应内容
+            document.querySelectorAll('.response-content').forEach(c => c.style.display = 'none');
+            document.getElementById(`response${tab.charAt(0).toUpperCase() + tab.slice(1)}`).style.display = 'block';
+        }
+        
+        // 折叠/展开API分组
+        function toggleGroup(element) {
+            const icon = element.querySelector('i');
+            const items = element.nextElementSibling;
+            
+            if (items.style.display === 'none') {
+                items.style.display = 'block';
+                icon.className = 'bi bi-chevron-down';
+            } else {
+                items.style.display = 'none';
+                icon.className = 'bi bi-chevron-right';
+            }
+        }
+        
+        // 搜索API
+        function searchAPIs() {
+            const keyword = document.getElementById('apiSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.api-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(keyword) ? 'flex' : 'none';
+            });
+        }
+        
+        // 清空响应
+        function clearResponse() {
+            document.getElementById('responseStatus').style.display = 'none';
+            document.getElementById('responseBody').innerHTML = `
+                <div class="text-center text-muted p-5">
+                    <i class="bi bi-info-circle display-1"></i>
+                    <p class="mt-3">点击"发送请求"开始测试API</p>
+                </div>
+            `;
+            document.getElementById('headersContent').textContent = '';
+        }
+        
+        // 复制响应
+        function copyResponse() {
+            const responseText = document.getElementById('responseBody').textContent;
+            navigator.clipboard.writeText(responseText).then(() => {
+                alert('响应内容已复制到剪贴板');
+            });
+        }
+        
+        // 辅助函数
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // 页面加载时初始化
+        window.onload = init;
+    </script>
+</body>
+</html>

@@ -222,6 +222,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Python SQL血缘分析服务
+  python-lineage-service:
+    build: ./python-lineage-service
+    container_name: metrics-python-lineage
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+    networks:
+      - metrics-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   doris_fe_data:

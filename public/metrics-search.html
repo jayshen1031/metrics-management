@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标搜索 - 指标管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --level-1: 1.3rem;   /* 主标题 */
+            --level-2: 1.1rem;   /* 主分类 */
+            --level-3: 1.0rem;   /* 字段标签 */
+            --level-4: 0.95rem;  /* 选项文字 */
+            --level-5: 0.85rem;  /* 描述文字 */
+            --primary-color: #1a2980;
+            --secondary-color: #26d0ce;
+            --accent-color: #3498db;
+            --card-hover: #e3f2fd;
+            --border-color: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            padding-bottom: 30px;
+            
+            /* 背景网格 */
+            background-image: 
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%),
+                linear-gradient(45deg, rgba(220, 220, 220, 0.25) 25%, transparent 25%, transparent 75%, rgba(220, 220, 220, 0.25) 75%);
+            background-size: 300px 300px;
+            background-position: 0 0, 150px 150px;
+        }
+        
+        .header-container {
+            background: linear-gradient(to right, #1a2980, #26d0ce);
+            padding: 22px 0;
+            margin-bottom: 30px;
+            color: white;
+            border-bottom: 5px solid #3498db;
+        }
+        
+        .header-container h1 {
+            font-size: var(--level-1);
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .header-container p {
+            font-size: var(--level-4);
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .search-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .search-input-group {
+            position: relative;
+        }
+        
+        .search-input {
+            font-size: 1.2rem;
+            padding: 15px 20px;
+            padding-right: 50px;
+            border-radius: 30px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .filter-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .filter-tag {
+            display: inline-block;
+            padding: 5px 15px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-tag:hover {
+            border-color: #3498db;
+            background: #e3f2fd;
+        }
+        
+        .filter-tag.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .search-results {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+        }
+        
+        .result-item {
+            border-bottom: 1px solid #eee;
+            padding: 20px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .result-item:hover {
+            background: #f8f9fa;
+            margin: 0 -20px;
+            padding: 20px;
+        }
+        
+        .result-title {
+            font-size: 1.1rem;
+            color: #1a2980;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .result-title:hover {
+            color: #3498db;
+        }
+        
+        .result-meta {
+            margin-top: 5px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .highlight {
+            background: #fff59d;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .search-stats {
+            background: #e3f2fd;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #1976d2;
+        }
+        
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <div class="container">
+            <h1 class="text-center mb-0"><i class="bi bi-search"></i> 指标搜索</h1>
+            <p class="text-center mb-0 opacity-75">快速查找所需的业务指标</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- 搜索框 -->
+        <div class="search-container">
+            <div class="search-input-group">
+                <input type="text" class="form-control search-input" id="searchInput" 
+                       placeholder="搜索指标名称、描述、公式..." autofocus>
+                <button class="btn btn-primary search-btn" onclick="performSearch()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            
+            <!-- 快速筛选 -->
+            <div class="filter-section">
+                <h6 class="mb-3">快速筛选：</h6>
+                <div class="filter-group">
+                    <span class="text-muted me-2">分类：</span>
+                    <span class="filter-tag" data-filter="category" data-value="all">全部</span>
+                    <span class="filter-tag" data-filter="category" data-value="business">业务指标</span>
+                    <span class="filter-tag" data-filter="category" data-value="user">用户指标</span>
+                    <span class="filter-tag" data-filter="category" data-value="traffic">流量指标</span>
+                    <span class="filter-tag" data-filter="category" data-value="technical">技术指标</span>
+                    <span class="filter-tag" data-filter="category" data-value="service">服务指标</span>
+                </div>
+                <div class="filter-group mt-2">
+                    <span class="text-muted me-2">频率：</span>
+                    <span class="filter-tag" data-filter="frequency" data-value="all">全部</span>
+                    <span class="filter-tag" data-filter="frequency" data-value="realtime">实时</span>
+                    <span class="filter-tag" data-filter="frequency" data-value="daily">每日</span>
+                    <span class="filter-tag" data-filter="frequency" data-value="weekly">每周</span>
+                    <span class="filter-tag" data-filter="frequency" data-value="monthly">每月</span>
+                </div>
+                <div class="filter-group mt-2">
+                    <span class="text-muted me-2">质量：</span>
+                    <span class="filter-tag" data-filter="quality" data-value="all">全部</span>
+                    <span class="filter-tag" data-filter="quality" data-value="high">高质量 (80+)</span>
+                    <span class="filter-tag" data-filter="quality" data-value="medium">中质量 (50-79)</span>
+                    <span class="filter-tag" data-filter="quality" data-value="low">低质量 (<50)</span>
+                </div>
+            </div>
+            
+            <!-- 高级搜索选项 -->
+            <div class="mt-3">
+                <a href="#" onclick="toggleAdvancedSearch()" class="text-decoration-none">
+                    <i class="bi bi-gear"></i> 高级搜索选项
+                </a>
+                <div id="advancedSearch" class="mt-3" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">创建时间范围</label>
+                            <input type="date" class="form-control" id="dateFrom">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">至</label>
+                            <input type="date" class="form-control" id="dateTo">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">数据源</label>
+                            <select class="form-select" id="dataSource">
+                                <option value="">全部</option>
+                                <option value="doris">Doris</option>
+                                <option value="mysql">MySQL</option>
+                                <option value="api">API</option>
+                                <option value="manual">手动输入</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 搜索统计 -->
+        <div class="search-stats" id="searchStats" style="display: none;">
+            <i class="bi bi-info-circle"></i> 
+            找到 <strong id="resultCount">0</strong> 个相关指标
+            <span id="searchTime" class="ms-2"></span>
+        </div>
+        
+        <!-- 搜索结果 -->
+        <div class="search-results" id="searchResults">
+            <!-- 默认状态 -->
+            <div class="empty-state" id="defaultState">
+                <i class="bi bi-search"></i>
+                <h5>开始搜索</h5>
+                <p>输入关键词搜索指标，或使用筛选器快速定位</p>
+            </div>
+            
+            <!-- 结果列表 -->
+            <div id="resultsList" style="display: none;">
+                <!-- 动态加载搜索结果 -->
+            </div>
+            
+            <!-- 无结果状态 -->
+            <div class="empty-state" id="noResults" style="display: none;">
+                <i class="bi bi-inbox"></i>
+                <h5>未找到相关指标</h5>
+                <p>请尝试其他关键词或调整筛选条件</p>
+                <button class="btn btn-primary btn-sm mt-2" onclick="clearSearch()">
+                    清空搜索条件
+                </button>
+            </div>
+        </div>
+        
+        <!-- 返回按钮 -->
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> 返回主页
+            </a>
+        </div>
+    </div>
+    
+    <!-- 水印 -->
+    <div class="watermark">Metrics Platform v1.0</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allMetrics = [];
+        let activeFilters = {
+            category: 'all',
+            frequency: 'all',
+            quality: 'all'
+        };
+        
+        // 初始化
+        async function init() {
+            // 加载所有指标
+            try {
+                const response = await fetch('/api/v1/metrics');
+                const data = await response.json();
+                if (data.success) {
+                    allMetrics = data.data;
+                }
+            } catch (error) {
+                console.error('加载指标失败:', error);
+            }
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 检查URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const keyword = urlParams.get('keyword');
+            if (keyword) {
+                document.getElementById('searchInput').value = keyword;
+                performSearch();
+            }
+        }
+        
+        // 绑定事件
+        function bindEvents() {
+            // 搜索框回车事件
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+            
+            // 筛选标签点击事件
+            document.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const filterType = this.dataset.filter;
+                    const filterValue = this.dataset.value;
+                    
+                    // 更新选中状态
+                    document.querySelectorAll(`[data-filter="${filterType}"]`).forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // 更新筛选条件
+                    activeFilters[filterType] = filterValue;
+                    
+                    // 执行搜索
+                    performSearch();
+                });
+            });
+            
+            // 默认选中"全部"
+            document.querySelectorAll('[data-value="all"]').forEach(tag => {
+                tag.classList.add('active');
+            });
+        }
+        
+        // 执行搜索
+        function performSearch() {
+            const startTime = performance.now();
+            const keyword = document.getElementById('searchInput').value.trim();
+            
+            let results = [...allMetrics];
+            
+            // 关键词搜索
+            if (keyword) {
+                results = results.filter(metric => {
+                    const searchFields = [
+                        metric.name,
+                        metric.description,
+                        metric.calculation_formula,
+                        metric.unit
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    
+                    return searchFields.includes(keyword.toLowerCase());
+                });
+            }
+            
+            // 应用筛选器
+            if (activeFilters.category !== 'all') {
+                results = results.filter(m => m.category === activeFilters.category);
+            }
+            
+            if (activeFilters.frequency !== 'all') {
+                results = results.filter(m => m.update_frequency === activeFilters.frequency);
+            }
+            
+            if (activeFilters.quality !== 'all') {
+                results = results.filter(m => {
+                    const score = m.data_quality_score || 0;
+                    if (activeFilters.quality === 'high') return score >= 80;
+                    if (activeFilters.quality === 'medium') return score >= 50 && score < 80;
+                    if (activeFilters.quality === 'low') return score < 50;
+                    return true;
+                });
+            }
+            
+            // 高级搜索选项
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const dataSource = document.getElementById('dataSource').value;
+            
+            if (dateFrom) {
+                results = results.filter(m => new Date(m.created_at) >= new Date(dateFrom));
+            }
+            
+            if (dateTo) {
+                results = results.filter(m => new Date(m.created_at) <= new Date(dateTo));
+            }
+            
+            if (dataSource) {
+                results = results.filter(m => m.data_source === dataSource);
+            }
+            
+            // 计算搜索时间
+            const endTime = performance.now();
+            const searchTime = ((endTime - startTime) / 1000).toFixed(2);
+            
+            // 显示结果
+            displayResults(results, keyword, searchTime);
+        }
+        
+        // 显示搜索结果
+        function displayResults(results, keyword, searchTime) {
+            const defaultState = document.getElementById('defaultState');
+            const resultsList = document.getElementById('resultsList');
+            const noResults = document.getElementById('noResults');
+            const searchStats = document.getElementById('searchStats');
+            
+            // 隐藏所有状态
+            defaultState.style.display = 'none';
+            resultsList.style.display = 'none';
+            noResults.style.display = 'none';
+            
+            if (results.length === 0) {
+                // 无结果
+                noResults.style.display = 'block';
+                searchStats.style.display = 'none';
+            } else {
+                // 显示结果
+                resultsList.style.display = 'block';
+                searchStats.style.display = 'block';
+                
+                // 更新统计信息
+                document.getElementById('resultCount').textContent = results.length;
+                document.getElementById('searchTime').textContent = `(用时 ${searchTime} 秒)`;
+                
+                // 渲染结果列表
+                resultsList.innerHTML = results.map(metric => {
+                    let displayName = metric.name;
+                    let displayDesc = metric.description || '';
+                    let displayFormula = metric.calculation_formula || '';
+                    
+                    // 高亮关键词
+                    if (keyword) {
+                        displayName = highlightKeyword(displayName, keyword);
+                        displayDesc = highlightKeyword(displayDesc, keyword);
+                        displayFormula = highlightKeyword(displayFormula, keyword);
+                    }
+                    
+                    return `
+                        <div class="result-item">
+                            <h5>
+                                <a href="/metric-detail.html?id=${metric.id}" class="result-title">
+                                    ${displayName}
+                                </a>
+                            </h5>
+                            <div class="result-meta">
+                                <span class="badge bg-light text-dark">${getCategoryName(metric.category)}</span>
+                                <span class="ms-2">
+                                    <i class="bi bi-clock"></i> ${getFrequencyName(metric.update_frequency)}
+                                </span>
+                                <span class="ms-2">
+                                    <i class="bi bi-star-fill text-warning"></i> 
+                                    质量评分 ${metric.data_quality_score || 0}%
+                                </span>
+                                <span class="ms-2">
+                                    状态：${metric.status === 'active' ? 
+                                        '<span class="text-success">启用</span>' : 
+                                        '<span class="text-danger">停用</span>'}
+                                </span>
+                            </div>
+                            ${displayDesc ? `<p class="mt-2 mb-1">${displayDesc}</p>` : ''}
+                            ${displayFormula ? `<p class="mb-0"><small class="text-muted">计算公式：<code>${displayFormula}</code></small></p>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        
+        // 高亮关键词
+        function highlightKeyword(text, keyword) {
+            if (!keyword || !text) return text;
+            
+            const regex = new RegExp(`(${keyword})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+        
+        // 切换高级搜索
+        function toggleAdvancedSearch() {
+            const advanced = document.getElementById('advancedSearch');
+            advanced.style.display = advanced.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // 清空搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('dataSource').value = '';
+            
+            // 重置筛选器
+            activeFilters = {
+                category: 'all',
+                frequency: 'all',
+                quality: 'all'
+            };
+            
+            document.querySelectorAll('.filter-tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            document.querySelectorAll('[data-value="all"]').forEach(tag => {
+                tag.classList.add('active');
+            });
+            
+            // 显示默认状态
+            document.getElementById('defaultState').style.display = 'block';
+            document.getElementById('resultsList').style.display = 'none';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('searchStats').style.display = 'none';
+        }
+        
+        // 辅助函数
+        function getCategoryName(category) {
+            const names = {
+                'business': '业务指标',
+                'user': '用户指标',
+                'traffic': '流量指标',
+                'technical': '技术指标',
+                'service': '服务指标'
+            };
+            return names[category] || category;
+        }
+        
+        function getFrequencyName(frequency) {
+            const names = {
+                'realtime': '实时',
+                'daily': '每日',
+                'weekly': '每周',
+                'monthly': '每月'
+            };
+            return names[frequency] || frequency;
+        }
+        
+        // 页面加载时初始化
+        window.onload = init;
+    </script>
+</body>
+</html>

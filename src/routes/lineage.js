@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const LineageAnalysisService = require('../services/LineageAnalysisService');
+const EnhancedLineageAnalysisService = require('../services/EnhancedLineageAnalysisService');
 const MetadataCollectorService = require('../services/MetadataCollectorService');
 
-// 分析SQL血缘关系
+// 分析SQL血缘关系 (增强版)
 router.post('/analyze-sql', async (req, res) => {
   try {
     const { sql, context = {} } = req.body;
@@ -15,16 +16,23 @@ router.post('/analyze-sql', async (req, res) => {
       });
     }
     
-    const result = await LineageAnalysisService.analyzeSQLLineage(sql, context);
+    // 使用增强版血缘分析服务
+    const result = await EnhancedLineageAnalysisService.analyzeSQLLineage(sql, context);
     
     res.json({
       success: result.success,
-      data: result.lineage,
-      tables: result.tables,
-      columns: result.columns,
+      data: {
+        lineage: result.lineage,
+        tables: result.tables,
+        columns: result.columns,
+        parser: result.parser,
+        statistics: result.statistics,
+        complexity: result.complexity
+      },
       error: result.error
     });
   } catch (error) {
+    console.error('SQL血缘分析API错误:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -411,6 +419,78 @@ router.post('/validate', async (req, res) => {
         hasIndirectRelation: indirectRelation.length > 0,
         indirectRelations: indirectRelation,
         validated: true
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 批量分析SQL血缘 (新增)
+router.post('/batch-analyze', async (req, res) => {
+  try {
+    const { sqls, context = {} } = req.body;
+    
+    if (!sqls || !Array.isArray(sqls)) {
+      return res.status(400).json({
+        success: false,
+        error: '请提供SQL数组'
+      });
+    }
+    
+    const result = await EnhancedLineageAnalysisService.batchAnalyzeSQL(sqls, context);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('批量SQL血缘分析API错误:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 分析SQL复杂度 (新增)
+router.post('/complexity', async (req, res) => {
+  try {
+    const { sql } = req.body;
+    
+    if (!sql) {
+      return res.status(400).json({
+        success: false,
+        error: '请提供SQL语句'
+      });
+    }
+    
+    const complexity = await EnhancedLineageAnalysisService.analyzeSQLComplexity(sql);
+    
+    res.json({
+      success: true,
+      data: complexity
+    });
+  } catch (error) {
+    console.error('SQL复杂度分析API错误:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 检查Python血缘服务状态 (新增)
+router.get('/service-status', async (req, res) => {
+  try {
+    const isAvailable = await EnhancedLineageAnalysisService.checkPythonService();
+    
+    res.json({
+      success: true,
+      data: {
+        python_service_available: isAvailable,
+        service_url: process.env.PYTHON_LINEAGE_SERVICE_URL || 'http://localhost:5000',
+        fallback_enabled: true
       }
     });
   } catch (error) {
