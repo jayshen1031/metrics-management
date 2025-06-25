@@ -129,3 +129,131 @@
 ---
 
 **本次迭代总结**: 成功建立完整的本地开发测试环境，开发了可视化管理界面，解决了所有部署和字符集问题。**突破性进展：通过Mock服务解决了复杂的外部系统集成问题，实现了100%的系统健康状态。**系统现在完全可用，支持所有核心功能的测试和开发。
+
+## 2025-06-25 - Neo4j血缘图谱可视化优化
+
+### 🎯 主要成就
+1. **解决D3.js血缘图文字溢出问题**
+2. **创建三种不同的血缘可视化方案**
+3. **成功集成Neo4j图数据库**
+4. **部署真实的Neovis.js血缘分析系统**
+
+### 🔧 技术实现
+
+#### 血缘图谱优化方案
+
+##### 1. D3.js动态节点优化 (`metric-lineage-graph.html`)
+- **动态节点大小**: 根据文字长度自动调整节点半径
+- **智能文字截断**: 长文字自动在合适位置截断并显示省略号
+- **自适应字体**: 根据文字长度使用不同字体大小（10px/12px/14px）
+- **完整文字tooltip**: hover时显示完整节点名称
+- **碰撞检测优化**: 动态调整碰撞半径防止重叠
+
+```javascript
+// 核心算法：动态计算节点半径
+getNodeRadius(type, textLength = 0) {
+    const baseRadius = baseSizes[type] || 18;
+    const textWidth = textLength * 6;
+    const minRadius = Math.max(baseRadius, textWidth / 2 + 8);
+    const maxRadius = baseRadius * 1.8;
+    return Math.min(minRadius, maxRadius);
+}
+```
+
+##### 2. 模拟Neo4j界面 (`neovis-lineage.html`)
+- 使用vis.js创建Neo4j风格界面
+- 无需真实Neo4j数据库
+- 模拟Cypher查询功能
+- 预设查询模板和示例数据
+
+##### 3. 真实Neovis.js集成 (`neovis-lineage-real.html`)
+- 完整的Neovis.js集成
+- 连接真实Neo4j数据库
+- 支持实时Cypher查询
+- 专业级图谱渲染引擎
+
+#### Neo4j部署架构
+
+##### Docker配置 (`docker-compose-neo4j.yml`)
+```yaml
+services:
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt协议
+    environment:
+      - NEO4J_AUTH=neo4j/metrics123
+```
+
+##### 数据初始化 (`init-metrics-lineage.cypher`)
+- 23个节点：5个Metric、5个Table、6个Field、3个Report、2个Dashboard、2个API
+- 6种关系类型：FEEDS_INTO、DEPENDS_ON、USES、DISPLAYED_IN、SERVED_BY、HAS_FIELD
+- 完整的血缘关系网络
+
+### 🐛 问题解决记录
+
+#### 1. 文字溢出问题
+**用户反馈**: "neo4j风格的圆圈没有自动适配字体的长度，字体都超出圆圈了"
+**解决方案**: 
+- 实现动态节点大小计算
+- 智能文字截断算法
+- 多级字体大小适配
+
+#### 2. 服务器访问问题
+**问题**: Express服务器无法从外部访问
+**解决方案**: 修改监听地址为`0.0.0.0`
+```javascript
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server accessible at: http://localhost:${PORT}`);
+});
+```
+
+#### 3. Neo4j浏览器连接问题
+**问题**: "无法连接到Neo4j数据库"
+**可能原因**:
+- 浏览器CORS限制
+- WebSocket连接被阻止
+- 本地网络配置问题
+
+**已尝试的解决方案**:
+- 配置Neo4j CORS设置
+- 使用正确的Bolt URL格式
+- 验证服务端口开放性
+
+### 📊 测试结果
+
+#### Neo4j部署状态
+- ✅ Docker容器运行正常
+- ✅ HTTP API访问正常 (7474端口)
+- ✅ 数据初始化成功
+- ⚠️ 浏览器Bolt连接存在问题
+
+#### 可视化方案对比
+| 方案 | 优点 | 缺点 | 适用场景 |
+|------|------|------|----------|
+| D3.js优化版 | 轻量、无需数据库、文字自适应 | 功能相对简单 | 小规模血缘展示 |
+| 模拟Neo4j | 专业界面、无需数据库 | 数据不真实 | 演示和原型 |
+| 真实Neovis.js | 功能强大、真实数据、专业渲染 | 需要Neo4j运行 | 生产环境 |
+
+### 🔄 当前状态
+- **D3.js血缘图**: ✅ 完全正常，文字显示优化
+- **模拟Neo4j界面**: ✅ 正常运行
+- **Neo4j数据库**: ✅ 运行正常 (Docker)
+- **真实Neovis.js**: ⚠️ 连接问题待解决
+
+### 🎯 下一步计划
+1. 调试Neo4j浏览器连接问题
+2. 优化Neovis.js连接配置
+3. 增加更多血缘分析功能
+4. 完善图谱交互体验
+
+### 💡 技术洞察
+1. **文字适配算法**: 动态节点大小计算需要平衡美观和信息展示
+2. **Neo4j部署**: Docker部署简化了环境配置，但浏览器安全策略仍是挑战
+3. **可视化选择**: 不同场景需要不同的可视化方案，没有一刀切的解决方案
+4. **Mock vs 真实**: Mock服务在开发阶段极大提升了效率
+
+---
+
+**本次迭代总结**: 成功解决了血缘图文字溢出问题，提供了三种不同的可视化方案。虽然Neo4j浏览器连接仍有问题，但已建立了完整的图数据库基础设施，为后续优化打下了坚实基础。
