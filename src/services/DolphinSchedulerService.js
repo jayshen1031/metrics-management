@@ -11,7 +11,7 @@ class DolphinSchedulerService {
   // 登录获取Token
   async login() {
     try {
-      const response = await axios.post(`${this.baseURL}/dolphinscheduler/login`, {
+      const response = await axios.post(`${this.baseURL}/login`, {
         userName: process.env.DOLPHINSCHEDULER_USER || 'admin',
         userPassword: process.env.DOLPHINSCHEDULER_PASSWORD || 'dolphinscheduler123'
       });
@@ -40,7 +40,7 @@ class DolphinSchedulerService {
   async getProjects() {
     await this.ensureAuthenticated();
     try {
-      const response = await axios.get(`${this.baseURL}/dolphinscheduler/projects`, {
+      const response = await axios.get(`${this.baseURL}/projects`, {
         headers: { 'token': this.token }
       });
       return response.data.success ? response.data.data : [];
@@ -57,7 +57,7 @@ class DolphinSchedulerService {
     
     try {
       const response = await axios.get(
-        `${this.baseURL}/dolphinscheduler/projects/${code}/process-definition`,
+        `${this.baseURL}/projects/${code}/process-definition`,
         {
           headers: { 'token': this.token },
           params: { pageSize: 1000, pageNo: 1 }
@@ -76,7 +76,7 @@ class DolphinSchedulerService {
     
     try {
       const response = await axios.get(
-        `${this.baseURL}/dolphinscheduler/projects/${projectCode}/process-definition/${processDefinitionCode}`,
+        `${this.baseURL}/projects/${projectCode}/process-definition/${processDefinitionCode}`,
         { headers: { 'token': this.token } }
       );
       return response.data.success ? response.data.data : null;
@@ -93,7 +93,7 @@ class DolphinSchedulerService {
     
     try {
       const response = await axios.get(
-        `${this.baseURL}/dolphinscheduler/projects/${code}/task-definition`,
+        `${this.baseURL}/projects/${code}/task-definition`,
         {
           headers: { 'token': this.token },
           params: { pageSize: 1000, pageNo: 1 }
@@ -121,7 +121,7 @@ class DolphinSchedulerService {
       if (endDate) params.endDate = endDate;
       
       const response = await axios.get(
-        `${this.baseURL}/dolphinscheduler/projects/${code}/process-instances`,
+        `${this.baseURL}/projects/${code}/process-instances`,
         {
           headers: { 'token': this.token },
           params
@@ -140,7 +140,7 @@ class DolphinSchedulerService {
     
     try {
       const response = await axios.get(
-        `${this.baseURL}/dolphinscheduler/projects/${projectCode}/process-instances/${processInstanceId}/tasks`,
+        `${this.baseURL}/projects/${projectCode}/process-instances/${processInstanceId}/tasks`,
         { headers: { 'token': this.token } }
       );
       return response.data.success ? response.data.data : [];

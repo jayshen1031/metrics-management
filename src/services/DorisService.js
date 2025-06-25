@@ -16,8 +16,28 @@ class DorisService {
     this.connection = null;
   }
 
-  // 创建Doris连接
+  // 创建Doris连接（用于健康检查）
   async connect() {
+    try {
+      // 先尝试HTTP健康检查
+      const healthResponse = await axios.get(`http://${this.config.host}:${this.config.httpPort}/api/health`, {
+        timeout: 5000
+      });
+      
+      if (healthResponse.data.status === 'OK') {
+        console.log('Doris连接成功');
+        return true;
+      } else {
+        throw new Error('Doris健康检查失败');
+      }
+    } catch (error) {
+      console.error('Doris连接失败:', error.message);
+      throw error;
+    }
+  }
+
+  // 创建MySQL协议连接（用于实际查询）
+  async createMySQLConnection() {
     try {
       this.connection = await mysql.createConnection({
         host: this.config.host,
@@ -27,10 +47,10 @@ class DorisService {
         database: this.config.database,
         ssl: false
       });
-      console.log('Doris连接成功');
+      console.log('Doris MySQL连接成功');
       return this.connection;
     } catch (error) {
-      console.error('Doris连接失败:', error.message);
+      console.error('Doris MySQL连接失败:', error.message);
       throw error;
     }
   }

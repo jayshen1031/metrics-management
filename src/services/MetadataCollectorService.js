@@ -350,9 +350,9 @@ class MetadataCollectorService {
   // 获取最后采集时间
   async getLastCollectionTime() {
     const result = await database.query(`
-      SELECT MAX(end_time) as last_collection_time 
+      SELECT MAX(created_at) as last_collection_time 
       FROM metadata_collection_logs 
-      WHERE success = 1
+      WHERE status = 'success'
     `);
     return result[0]?.last_collection_time;
   }

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # MySQL - 已有服务
+  mysql:
+    image: mysql:8.0
+    container_name: metrics-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: metrics_management
+      MYSQL_USER: metrics
+      MYSQL_PASSWORD: metrics123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - metrics-network
+
+  # Redis - 已有服务
+  redis:
+    image: redis:7-alpine
+    container_name: metrics-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - metrics-network
+
+  # Doris FE - 使用官方构建镜像
+  doris-fe:
+    image: apache/doris:build-env-ldb-toolchain-latest
+    container_name: doris-fe
+    hostname: doris-fe
+    command: >
+      bash -c "
+        cd /opt &&
+        wget -q https://dist.apache.org/repos/dist/release/doris/2.1/2.1.0/apache-doris-2.1.0-bin-x64.tar.gz &&
+        tar -xzf apache-doris-2.1.0-bin-x64.tar.gz &&
+        cd apache-doris-2.1.0-bin-x64/fe &&
+        ./bin/start_fe.sh --daemon
+      "
+    ports:
+      - "8030:8030"  # HTTP端口
+      - "9030:9030"  # MySQL协议端口
+      - "9010:9010"  # RPC端口
+    volumes:
+      - doris_fe_data:/opt/apache-doris/fe/doris-meta
+    networks:
+      - metrics-network
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  doris_fe_data:
+
+networks:
+  metrics-network:
+    driver: bridge

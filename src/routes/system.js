@@ -482,7 +482,7 @@ router.post('/test-connection', async (req, res) => {
         // 测试所有连接
         const services = ['dolphinscheduler', 'doris'];
         for (const svc of services) {
-          await req.body = { service: svc };
+          req.body = { service: svc };
           // 递归调用测试各个服务
         }
         break;
