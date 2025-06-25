@@ -32,16 +32,18 @@ metrics-management/
 │   │   └── DorisService.js      # Doris集成服务(Mock)
 │   └── utils/                   # 工具函数
 ├── public/                      # 前端页面
-│   ├── navigation-v2.html       # 系统主页(Bootstrap风格)
+│   ├── index.html               # 系统主页(原navigation-v2.html)
+│   ├── dashboard.html           # 系统仪表板(原index.html)
 │   ├── metrics-list.html        # 指标列表管理
 │   ├── metrics-search.html      # 指标搜索页面
 │   ├── sql-analyzer.html        # SQL血缘分析工具
 │   ├── assets-catalog.html      # 数据资产目录
 │   ├── api-tester.html          # API测试工具
 │   ├── metric-lineage-graph.html # D3.js血缘图谱(优化版)
-│   ├── neovis-lineage.html      # Neovis.js专业血缘图
+│   ├── neovis-lineage.html      # 模拟Neo4j血缘图(vis.js)
+│   ├── neovis-lineage-real.html # 真实Neo4j血缘图(Neovis.js)
 │   ├── lineage-demo.html        # 血缘演示页面
-│   └── index.html               # 原系统首页
+│   └── navigation-v2.html       # 原导航页面(已作为index.html)
 ├── config/
 │   ├── database.js              # 数据库配置
 │   └── 售前项目客户评级系统1.0.html # UI设计参考
@@ -49,7 +51,10 @@ metrics-management/
 │   ├── init-database.sql        # 数据库初始化
 │   ├── test-case-lineage.sql    # 测试数据
 │   ├── create-metric-governance-tables.sql # 指标治理表
-│   └── create-test-workflow.js  # 测试工作流创建
+│   ├── create-test-workflow.js  # 测试工作流创建
+│   ├── start-neo4j.sh          # Neo4j启动脚本
+│   └── neo4j-init/             # Neo4j初始化目录
+│       └── init-metrics-lineage.cypher # 血缘数据初始化
 ├── tests/                       # 测试文件
 ├── docs/                        # 文档
 ├── docker-compose.yml           # Docker编排
@@ -382,11 +387,13 @@ NODE_ENV=development
    - `sql-analyzer.html` - SQL血缘分析工具
    - `assets-catalog.html` - 数据资产目录
    - `api-tester.html` - API测试工具
+   - `dashboard.html` - 系统仪表板（原index.html）
 
 2. **统一导航系统**
-   - 确定`navigation-v2.html`为系统主页
+   - 确定`navigation-v2.html`为系统主页(现index.html)
    - 更新所有导航链接指向实际功能页面
    - 采用Bootstrap 5统一设计风格
+   - 所有页面统一使用CSS变量系统
 
 3. **血缘图谱可视化优化**
    - **D3.js血缘图优化** (`metric-lineage-graph.html`)
@@ -395,18 +402,33 @@ NODE_ENV=development
      - 自适应字体大小：不同长度文字使用合适字体
      - 完整文字tooltip：hover显示完整节点名称
      - 动态碰撞检测：防止节点重叠，优化布局
-   - **Neovis.js专业血缘图** (`neovis-lineage.html`) 🆕
-     - 基于Neovis.js构建的专业级Neo4j风格图谱
-     - 真实Neo4j Browser界面设计
-     - Cypher查询语言支持
-     - 高级物理引擎（Force Atlas 2、分层布局等）
-     - 专业级节点渲染和关系可视化
-     - 预设查询模板和交互式控制面板
+   - **模拟Neovis.js血缘图** (`neovis-lineage.html`) 
+     - 使用vis.js模拟Neo4j风格（无需真实Neo4j）
+     - Neo4j Browser界面设计
+     - 模拟Cypher查询功能
+     - 预设查询模板
+   - **真实Neovis.js血缘图** (`neovis-lineage-real.html`) 🆕
+     - 需要Neo4j数据库运行
+     - 真正的Neovis.js集成
+     - 实时Cypher查询执行
+     - 专业图数据库功能
 
-4. **功能特性完善**
+4. **Neo4j图数据库集成** 🆕
+   - 创建`docker-compose-neo4j.yml`配置
+   - 编写初始化Cypher脚本(`scripts/neo4j-init/init-metrics-lineage.cypher`)
+   - 预加载完整的指标血缘测试数据
+   - 启动脚本`scripts/start-neo4j.sh`
+   - Neo4j访问信息：
+     - Browser: http://localhost:7474
+     - Bolt: bolt://localhost:7687
+     - 用户名: neo4j
+     - 密码: metrics123
+
+5. **功能特性完善**
    - CodeMirror SQL编辑器集成
    - 响应式设计适配移动端
    - API测试工具支持历史记录
+   - 服务器网络绑定修复(0.0.0.0)
 
 ### 🔄 待完善项目
 1. **数据库问题修复**

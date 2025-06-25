@@ -6,6 +6,9 @@
     <title>Neo4j血缘图谱 - 指标管理平台</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <!-- Neovis.js and its dependencies -->
+    <script src="https://unpkg.com/neo4j-driver@5"></script>
+    <script src="https://unpkg.com/vis-network@latest/standalone/umd/vis-network.min.js"></script>
     <script src="https://unpkg.com/neovis.js@2.1.0"></script>
     <style>
         :root {
@@ -523,19 +526,19 @@
     <script>
         // Neo4j Neovis.js 配置
         let viz;
+        let mockData = null;
         
-        // 初始化图谱
+        // 初始化Neovis图谱
         function initNeovis() {
+            // 由于没有真实的Neo4j服务器，我们需要创建模拟配置
             const config = {
-                containerId: 'neo4j-graph',
+                container_id: 'neo4j-graph',
+                server_url: 'bolt://localhost:7687',
+                server_user: 'neo4j',
+                server_password: 'password',
                 
-                // 模拟Neo4j数据库配置
-                neo4j: {
-                    serverUrl: 'bolt://localhost:7687',
-                    serverUser: 'neo4j',
-                    serverPassword: 'password',
-                    // 由于没有真实的Neo4j服务器，我们将使用静态数据
-                },
+                // 当无法连接到真实Neo4j时，使用自定义数据
+                initial_cypher: 'MATCH (n) RETURN n LIMIT 25',
                 
                 // 可视化配置
                 visConfig: {
